@@ -38,8 +38,8 @@ export interface IPlayerOptions {
 
 export interface IMoroboxAIPlayer {
     ready(callback?: () => void): void;
-    play(): void;
     pause(): void;
+    // Remove the player from document
     remove(): void;
 }
 
@@ -48,7 +48,10 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
     private _config: ISDKConfig;
     private _ui: {
         element?: HTMLElement;
-        canvas?: HTMLCanvasElement;
+        backupElementPosition?: string;
+        base?: HTMLElement;
+        overlay?: HTMLElement;
+        playButton?: HTMLElement;
     } = {};
     private _options: IPlayerOptions;
     private _readyCallback?: () => void;
@@ -82,10 +85,47 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
             return;
         }
 
-        this._ui.canvas = document.createElement('canvas');
+        this._ui.backupElementPosition = this._ui.element.style.position;
+        this._ui.element.style.position = 'relative';
+
+        {
+            let div = document.createElement('div');
+            this._ui.base = div;
+            div.style.width = '100%';
+            div.style.height = '100%';
+            div.style.position = 'absolute';
+            div.style.left = '0';
+            div.style.top = '0';
+            this._ui.element.appendChild(div);
+        }
+
+        {
+            let div = document.createElement('div');
+            this._ui.overlay = div;
+            div.style.width = '100%';
+            div.style.height = '100%';
+            div.style.position = 'absolute';
+            div.style.left = '0';
+            div.style.top = '0';
+            div.style.display = 'flex';
+            div.style.flexDirection = 'column';
+            div.style.justifyContent = 'center';
+            div.style.alignItems = 'center';
+            this._ui.element.appendChild(div);
+
+            {
+                let input = document.createElement('input');
+                this._ui.playButton = input;
+                input.type = 'button';
+                input.value = 'Play';
+                input.onclick = () => this._play();
+                div.appendChild(input);
+            }
+        }
+        /*this._ui.canvas = document.createElement('canvas');
         this._ui.canvas.style.width = '256px';
         this._ui.canvas.style.height = '256px';
-        this._ui.element.appendChild(this._ui.canvas);
+        this._ui.element.appendChild(this._ui.canvas);*/
     }
 
     // This task is for loading the game
@@ -153,8 +193,11 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
         }
     }
 
-    play(): void {
-        console.log("play");
+    private _play(): void {
+        if (this._ui.playButton !== undefined) {
+            this._ui.playButton.style.display = 'none';
+        }
+
         this._playTask = this._initGame().then(() => {
             this._notifyReady();
         }).catch(reason => {
@@ -170,15 +213,24 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
     }
 
     remove(): void {
-        if (this._ui.canvas !== undefined) {
-            this._ui.canvas.remove();
-            this._ui.canvas = undefined;
+        if (this._ui.overlay !== undefined) {
+            this._ui.overlay.remove();
+            this._ui.overlay = undefined;
+        }
+
+        if (this._ui.base !== undefined) {
+            this._ui.base.remove();
+            this._ui.base = undefined;
+        }
+
+        if (this._ui.element !== undefined) {
+            this._ui.element.style.position = this._ui.backupElementPosition!;
         }
     }
     
     // BootOptions interface
     get root(): HTMLElement {
-        return this._ui.canvas as HTMLElement;
+        return this._ui.base as HTMLElement;
     }
 
     get gameServer(): MoroboxAIGameSDK.IGameServer {
@@ -235,7 +287,6 @@ export function init(config: ISDKConfig, element?: IPlayerOptions | Element | El
     if (isPlayerOptions(element)) {
         options = element;
     } else {
-        options = undefined;
         _elements = element;
     }
 
