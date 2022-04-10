@@ -7,7 +7,28 @@ import {GameServer} from './server';
 export const VERSION: string = '0.1.0-alpha.1';
 
 export interface ISDKConfig {
-    createFileServer: (baseUrl: string) =>  MoroboxAIGameSDK.IFileServer
+    fileServer: (baseUrl: string) => MoroboxAIGameSDK.IFileServer;
+    zipServer: (baseUrl: string) => MoroboxAIGameSDK.IFileServer;
+}
+
+/**
+ * Create a file server base on URL ending.
+ * @param {string} baseUrl - Base URL
+ * @returns {MoroboxAIGameSDK.IFileServer} A file server
+ */
+function createFileServer(sdkConfig: ISDKConfig, baseUrl: string): MoroboxAIGameSDK.IFileServer {
+    // Point to zip file
+    if (baseUrl.endsWith(".zip")) {
+        return sdkConfig.zipServer(baseUrl);
+    }
+    
+    // Point to header.json so take parent URL
+    if (baseUrl.endsWith(".json")) {
+        const pos = baseUrl.lastIndexOf('/');
+        baseUrl = pos < 0 ? '' : baseUrl.substring(0, pos);
+    }
+
+    return sdkConfig.fileServer(baseUrl);
 }
 
 // Possible options for initializing the player
@@ -16,12 +37,152 @@ export interface IPlayerOptions {
 }
 
 export interface IMoroboxAIPlayer {
+    ready(callback?: () => void): void;
+    play(): void;
     pause(): void;
+    remove(): void;
 }
 
-class MoroboxAIPlayer implements IMoroboxAIPlayer {
-    pause(): void {
+// Player instance for controlling the game
+class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions {
+    private _config: ISDKConfig;
+    private _ui: {
+        element?: HTMLElement;
+        canvas?: HTMLCanvasElement;
+    } = {};
+    private _options: IPlayerOptions;
+    private _readyCallback?: () => void;
+    private _isReady: boolean = false;
+    private _playTask?: Promise<void>;
+    private _gameServer?: MoroboxAIGameSDK.IGameServer;
+    private _header?: MoroboxAIGameSDK.GameHeader;
+    private _exports: {
+        boot?: (options: MoroboxAIGameSDK.BootOptions) => MoroboxAIGameSDK.IGame
+    } = {};
+    private _game?: MoroboxAIGameSDK.IGame;
 
+    constructor(config: ISDKConfig, element: Element, options: IPlayerOptions) {
+        this._config = config;
+        this._options = options;
+
+        if (isHTMLElement(element)) {
+            this._ui.element = element as HTMLElement;
+            this._options = {...options};
+    
+            if (this._options.url === undefined) {
+                this._options.url = element.dataset.url;
+            }
+
+            this._attach();
+        }
+    }
+
+    private _attach() {
+        if (this._ui.element === undefined) {
+            return;
+        }
+
+        this._ui.canvas = document.createElement('canvas');
+        this._ui.canvas.style.width = '256px';
+        this._ui.canvas.style.height = '256px';
+        this._ui.element.appendChild(this._ui.canvas);
+    }
+
+    // This task is for loading the game
+    private _initGame(): Promise<void> {
+        return new Promise<void>(() => {
+            if (this._ui.element === undefined) {
+                return Promise.reject('element is not an HTMLElement');
+            }
+            
+            console.log('start game server...')
+            return this._startGameServer().then(() => {
+                console.log('game server started');
+                return this._loadHeader().then(() => {
+                    return this._loadGame();
+                });
+            })
+        });
+    }
+
+    // This task is for starting the game server based on game URL
+    private _startGameServer(): Promise<void> {
+        return new Promise<void>(resolve => {
+            const fileServer = createFileServer(this._config, this._options.url as string);
+            this._gameServer = new GameServer(fileServer);
+            this._gameServer.ready(resolve);
+        });
+    }
+
+    // This task is for loading the header.json file
+    private _loadHeader(): Promise<void> {
+        console.log('load game header...');
+        return this._gameServer!.gameHeader().then((header: MoroboxAIGameSDK.GameHeader) => {
+            this._header = header;
+            console.log('game header loaded');
+            console.log(header);
+        });
+    }
+
+    private _loadGame(): Promise<void> {
+        console.log('load game...');
+        return this._gameServer!.get(this._header!.boot).then(data => {
+            (new Function('exports', data))(this._exports);
+            if (this._exports.boot === undefined) {
+                return Promise.reject('missing boot function');
+            }
+
+            this._game = this._exports.boot(this);
+            console.log(this._game);
+        });  
+    }
+
+    ready(callback?: () => void): void {
+        this._readyCallback = callback;
+        if (this._isReady) {
+            this._notifyReady();
+        }
+    }
+
+    private _notifyReady(): void {
+        console.log('ready');
+        this._playTask = undefined;
+        this._isReady = true;
+        if (this._readyCallback !== undefined) {
+            this._readyCallback();
+        }
+    }
+
+    play(): void {
+        console.log("play");
+        this._playTask = this._initGame().then(() => {
+            this._notifyReady();
+        }).catch(reason => {
+            console.error(reason);
+            this._notifyReady();
+        });
+    }
+
+    pause(): void {
+        if (!this._isReady) {
+            return;
+        }
+    }
+
+    remove(): void {
+        if (this._ui.canvas !== undefined) {
+            this._ui.canvas.remove();
+            this._ui.canvas = undefined;
+        }
+    }
+    
+    // BootOptions interface
+    get root(): HTMLElement {
+        return this._ui.canvas as HTMLElement;
+    }
+
+    get gameServer(): MoroboxAIGameSDK.IGameServer {
+        return this._gameServer as MoroboxAIGameSDK.IGameServer;
     }
 }
 
@@ -31,44 +192,6 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer {
  */
 export function defaultOptions(): IPlayerOptions {
     return {};
-}
-
-export abstract class GameSDKBase implements MoroboxAIGameSDK.IMoroboxAIGameSDK {
-    private _readyCallback?: () => void;
-    private _isReady: boolean = false;
-    private _fileServer: MoroboxAIGameSDK.IFileServer;
-
-    public get version(): string {
-        return VERSION;
-    }
-
-    public get fileServer(): MoroboxAIGameSDK.IFileServer {
-        return this._fileServer;
-    }
-
-    constructor(options: GameSDKOptions) {
-        this._fileServer = options.fileServer;
-        // be ready when both servers are ready
-        Promise.all([
-            new Promise<void>((resolve, _) => {
-                this._fileServer.ready(resolve);
-            })
-        ]).then(() => this._notifyReady());
-    }
-
-    public ready(callback: () => void): void {
-        this._readyCallback = callback;
-        if (this._isReady) {
-            callback();
-        }
-    }
-
-    private _notifyReady(): void {
-        this._isReady = true;
-        if (this._readyCallback !== undefined) {
-            this._readyCallback();
-        }
-    }
 }
 
 export interface GameSDKOptions {
@@ -88,25 +211,8 @@ function isPlayerOptions(_?: | IPlayerOptions | Element | Element[] | HTMLCollec
     return _ !== undefined && !isElementArray(_) && !("className" in _);
 }
 
-function initInternal(config: ISDKConfig, element: Element, options: IPlayerOptions): IMoroboxAIPlayer {
-    if (!isHTMLElement(element)) {
-        return new MoroboxAIPlayer();
-    }
-
-    const _options = {...options};
-
-    if (_options.url === undefined) {
-        _options.url = element.dataset.url;
-    }
-
-    const fileServer = config.createFileServer(_options.url as string);
-    const gameServer = new GameServer(fileServer);
-    gameServer.ready(() => {
-        gameServer.gameHeader().then(header => {
-            console.log(header);
-        });
-    });
-    return new MoroboxAIPlayer();
+function createPlayer(config: ISDKConfig, element: Element, options: IPlayerOptions): IMoroboxAIPlayer {
+    return new MoroboxAIPlayer(config, element, options);
 }
 
 export function init(config: ISDKConfig) : void;
@@ -142,8 +248,8 @@ export function init(config: ISDKConfig, element?: IPlayerOptions | Element | El
     }
 
     if (!isElementArray(_elements)) {
-        return initInternal(config, _elements, _options);
+        return createPlayer(config, _elements, _options);
     }
 
-    return Array.prototype.map.call(_elements, _ => initInternal(config, _, _options)) as IMoroboxAIPlayer[];
+    return Array.prototype.map.call(_elements, _ => createPlayer(config, _, _options)) as IMoroboxAIPlayer[];
 }
