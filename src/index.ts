@@ -39,6 +39,7 @@ export interface IPlayerOptions {
 export interface IMoroboxAIPlayer {
     ready(callback?: () => void): void;
     pause(): void;
+    loadAI(code: string): void;
     // Remove the player from document
     remove(): void;
 }
@@ -63,6 +64,10 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
         boot?: (options: MoroboxAIGameSDK.BootOptions) => MoroboxAIGameSDK.IGame
     } = {};
     private _game?: MoroboxAIGameSDK.IGame;
+    private _ai: {
+        update?: (state: any) => void;
+    } = {};
+    private _input: any = {};
 
     constructor(config: ISDKConfig, element: Element, options: IPlayerOptions) {
         this._config = config;
@@ -130,16 +135,16 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
 
     // This task is for loading the game
     private _initGame(): Promise<void> {
-        return new Promise<void>(() => {
+        return new Promise<void>((resolve, reject) => {
             if (this._ui.element === undefined) {
-                return Promise.reject('element is not an HTMLElement');
+                return reject('element is not an HTMLElement');
             }
             
             console.log('start game server...')
             return this._startGameServer().then(() => {
                 console.log('game server started');
                 return this._loadHeader().then(() => {
-                    return this._loadGame();
+                    return this._loadGame().then(resolve);
                 });
             })
         });
@@ -174,6 +179,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
 
             this._game = this._exports.boot(this);
             console.log(this._game);
+            return Promise.resolve();
         });  
     }
 
@@ -212,6 +218,10 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
         }
     }
 
+    loadAI(code: string): void {
+        (new Function('exports', 'sendInput', code))(this._ai, (state: any) => this._sendInput(state));
+    }
+
     remove(): void {
         if (this._ui.overlay !== undefined) {
             this._ui.overlay.remove();
@@ -235,6 +245,20 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
 
     get gameServer(): MoroboxAIGameSDK.IGameServer {
         return this._gameServer as MoroboxAIGameSDK.IGameServer;
+    }
+    
+    sendState(state: any): void {
+        if (this._ai?.update !== undefined) {
+            this._ai.update(state);
+        }
+    }
+
+    private _sendInput(state: any): void {
+        this._input = state;
+    }
+
+    input(): any {
+        return this._input;
     }
 }
 
