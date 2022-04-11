@@ -99,7 +99,7 @@ import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
 
 export class Game extends MoroboxAIGameSDK.AbstractGame
 {
-    constructor(options: MoroboxAIGameSDK.BootOptions) {
+    constructor(player: MoroboxAIGameSDK.IPlayer) {
         super();
     }
 
@@ -117,7 +117,7 @@ export class Game extends MoroboxAIGameSDK.AbstractGame
 }
 
 // entrypoint used by MoroboxAI to boot our game
-export function boot(options: MoroboxAIGameSDK.BootOptions) {
+export function boot(player: MoroboxAIGameSDK.IPlayer) {
     const game = new Game(options);
 }
 ```

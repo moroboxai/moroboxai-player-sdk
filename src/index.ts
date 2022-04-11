@@ -1,4 +1,5 @@
 import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
+import {ControllerBus, IController} from './controller';
 import {GameServer} from './server';
 
 /**
@@ -37,15 +38,20 @@ export interface IPlayerOptions {
 }
 
 export interface IMoroboxAIPlayer {
-    ready(callback?: () => void): void;
+    onReady?: () => void;
     pause(): void;
-    loadAI(code: string): void;
+    /**
+     * Get a controller by id.
+     * @param {number} id - Controller id
+     * @returns {IController} Controller
+     */
+    controller(id: number): IController | undefined;
     // Remove the player from document
     remove(): void;
 }
 
 // Player instance for controlling the game
-class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions {
+class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     private _config: ISDKConfig;
     private _ui: {
         element?: HTMLElement;
@@ -61,13 +67,11 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
     private _gameServer?: MoroboxAIGameSDK.IGameServer;
     private _header?: MoroboxAIGameSDK.GameHeader;
     private _exports: {
-        boot?: (options: MoroboxAIGameSDK.BootOptions) => MoroboxAIGameSDK.IGame
+        boot?: (player: MoroboxAIGameSDK.IPlayer) => MoroboxAIGameSDK.IGame
     } = {};
     private _game?: MoroboxAIGameSDK.IGame;
-    private _ai: {
-        update?: (state: any) => void;
-    } = {};
-    private _input: any = {};
+    private _onReadyCallback?: () => void;
+    private _controllerBus: ControllerBus = new ControllerBus();
 
     constructor(config: ISDKConfig, element: Element, options: IPlayerOptions) {
         this._config = config;
@@ -183,15 +187,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
         });  
     }
 
-    ready(callback?: () => void): void {
-        this._readyCallback = callback;
-        if (this._isReady) {
-            this._notifyReady();
-        }
-    }
-
     private _notifyReady(): void {
-        console.log('ready');
         this._playTask = undefined;
         this._isReady = true;
         if (this._readyCallback !== undefined) {
@@ -204,9 +200,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
             this._ui.playButton.style.display = 'none';
         }
 
-        this._playTask = this._initGame().then(() => {
-            this._notifyReady();
-        }).catch(reason => {
+        this._playTask = this._initGame().catch(reason => {
             console.error(reason);
             this._notifyReady();
         });
@@ -216,10 +210,6 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
         if (!this._isReady) {
             return;
         }
-    }
-
-    loadAI(code: string): void {
-        (new Function('exports', 'sendInput', code))(this._ai, (state: any) => this._sendInput(state));
     }
 
     remove(): void {
@@ -238,7 +228,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
         }
     }
     
-    // BootOptions interface
+    // IPlayer interface
     get root(): HTMLElement {
         return this._ui.base as HTMLElement;
     }
@@ -246,19 +236,34 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.BootOptions 
     get gameServer(): MoroboxAIGameSDK.IGameServer {
         return this._gameServer as MoroboxAIGameSDK.IGameServer;
     }
-    
-    sendState(state: any): void {
-        if (this._ai?.update !== undefined) {
-            this._ai.update(state);
+
+    get onReady(): (() => void) | undefined {
+        return this._onReadyCallback;
+    }
+
+    set onReady(callback: (() => void) | undefined) {
+        this._readyCallback = callback;
+        if (this._isReady) {
+            this._notifyReady();
         }
     }
 
-    private _sendInput(state: any): void {
-        this._input = state;
+    ready(): void {
+        console.log('game is loaded and ready');
+        this._notifyReady();
+    }
+    
+    sendState(state: any, controllerId?: number): void {
+        this._controllerBus.sendState(state, controllerId);
     }
 
-    input(): any {
-        return this._input;
+    input(controllerId?: number): any {
+        return this._controllerBus.input(controllerId);
+    }
+
+    // IMoroboxAIPlayer interface
+    controller(id: number): IController | undefined {
+        return this._controllerBus.get(id);
     }
 }
 
