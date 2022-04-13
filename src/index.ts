@@ -38,6 +38,8 @@ export interface IPlayerOptions {
 }
 
 export interface IMoroboxAIPlayer {
+    // Play the game
+    play(): void;
     onReady?: () => void;
     pause(): void;
     /**
@@ -262,6 +264,10 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     // IMoroboxAIPlayer interface
+    play(): void {
+        this._play();
+    }
+    
     controller(id: number): IController | undefined {
         return this._controllerBus.get(id);
     }
