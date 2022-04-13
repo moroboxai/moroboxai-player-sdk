@@ -1,0 +1,13 @@
+.DS_Store
+npm-debug.log
+yarn-error.log
+.eslintrc.json
+.github
+.gitignore
+.npmignore
+.travis.yml
+.vscode/
+
+__snapshots__
+*.spec.js
+*.spec.js.snap

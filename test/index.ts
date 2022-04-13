@@ -1,8 +1,5 @@
 import { expect } from 'chai';
 import 'chai';
-import * as http from 'http';
-import * as net from 'net';
-import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
 import * as MoroboxAIPlayerSDK from '../src/';
 
 describe('MoroboxAIPlayerSDK', function ()
