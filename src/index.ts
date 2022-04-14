@@ -5,7 +5,7 @@ import {GameServer} from './server';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.2';
+export const VERSION: string = '0.1.0-alpha.3';
 
 export interface ISDKConfig {
     fileServer: (baseUrl: string) => MoroboxAIGameSDK.IFileServer;
@@ -321,8 +321,8 @@ function createPlayer(config: ISDKConfig, element: Element, options: IPlayerOpti
     return new MoroboxAIPlayer(config, element, options);
 }
 
-export function init(config: ISDKConfig) : void;
-export function init(config: ISDKConfig, options: IPlayerOptions) : void;
+export function init(config: ISDKConfig) : IMoroboxAIPlayer | IMoroboxAIPlayer[];
+export function init(config: ISDKConfig, options: IPlayerOptions) : IMoroboxAIPlayer | IMoroboxAIPlayer[];
 export function init(config: ISDKConfig, element: Element) : IMoroboxAIPlayer;
 export function init(config: ISDKConfig, element: Element[] | HTMLCollectionOf<Element>) : IMoroboxAIPlayer[];
 export function init(config: ISDKConfig, element: Element, options: IPlayerOptions) : IMoroboxAIPlayer;
