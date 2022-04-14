@@ -21,7 +21,7 @@ npm install moroboxai-player-sdk --save
 
 ## Implementation
 
-This package is meant to be extended by implementing the missing gutter for making it work on the desired platform:
+This package is meant to be extended by implementing the missing gutter for the desired platform:
 
 ```ts
 import * as MoroboxAIPlayerSDK from 'moroboxai-player-sdk';
