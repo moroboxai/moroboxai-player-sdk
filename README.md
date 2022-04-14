@@ -19,6 +19,31 @@ Using npm:
 npm install moroboxai-player-sdk --save
 ```
 
+## Implementation
+
+This package is meant to be extended by implementing the missing gutter for making it work on the desired platform:
+
+```ts
+import * as MoroboxAIPlayerSDK from 'moroboxai-player-sdk';
+
+// The gutter added by our implementation
+const sdkConfig: MoroboxAIPlayerSDK.ISDKConfig = {
+ // Define how we create a file server on this platform
+ fileServer: (baseUrl: string) => ...,
+ // Define how we create a zip server on this platform
+ zipServer: (baseUrl: string) => ...
+};
+
+// Retrieve the HTMLElement we want to attach the player to
+const element: Element = ...;
+
+// The generic options for the player
+const options: MoroboxAIPlayerSDK.IPlayerOptions = ...;
+
+// Entrypoint of moroboxai-player-sdk with out gutter
+MoroboxAIPlayerSDK.init(sdkConfig, element, options);
+```
+
 ## License
 
 This content is released under the [MIT](http://opensource.org/licenses/MIT) License.
