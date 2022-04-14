@@ -6,6 +6,6 @@ describe('MoroboxAIPlayerSDK', function ()
 {
     it('should have VERSION', function ()
     {
-        expect(MoroboxAIPlayerSDK.VERSION).to.be.equal('0.1.0-alpha.1');
+        expect(MoroboxAIPlayerSDK.VERSION).to.be.equal('0.1.0-alpha.2');
     });
 });
