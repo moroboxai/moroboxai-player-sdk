@@ -9,7 +9,7 @@ This package provides the core functionalities for running MoroboxAI games on va
 See:
   * [moroboxai](https://github.com/moroboxai/moroboxai): for running games on the desktop with [Electron](https://www.electronjs.org/)
   * [moroboxai-player-web](https://github.com/moroboxai/moroboxai-player-web): for embedding games on the web
-  * [moroboxai-player-react](https://github.com/moroboxai/moroboxai-player-react): for embedding games in a [React](https://en.reactjs.org/) app
+  * [moroboxai-player-react](https://github.com/moroboxai/moroboxai-player-react): for embedding games in [React](https://en.reactjs.org/) apps
 
 ## Install
 
