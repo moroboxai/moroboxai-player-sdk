@@ -5,7 +5,7 @@ import {GameServer} from './server';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.1';
+export const VERSION: string = '0.1.0-alpha.2';
 
 export interface ISDKConfig {
     fileServer: (baseUrl: string) => MoroboxAIGameSDK.IFileServer;
@@ -34,7 +34,13 @@ function createFileServer(sdkConfig: ISDKConfig, baseUrl: string): MoroboxAIGame
 
 // Possible options for initializing the player
 export interface IPlayerOptions {
-    url?: string
+    element?: Element | Element[] | HTMLCollectionOf<Element>,
+    url?: string,
+    splashart?: string,
+    width?: string,
+    height?: string,
+    autoPlay?: boolean,
+    onReady?: () => void
 }
 
 export interface IMoroboxAIPlayer {
@@ -57,7 +63,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     private _config: ISDKConfig;
     private _ui: {
         element?: HTMLElement;
-        backupElementPosition?: string;
+        wrapper?: HTMLElement;
         base?: HTMLElement;
         overlay?: HTMLElement;
         playButton?: HTMLElement;
@@ -72,12 +78,15 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
         boot?: (player: MoroboxAIGameSDK.IPlayer) => MoroboxAIGameSDK.IGame
     } = {};
     private _game?: MoroboxAIGameSDK.IGame;
-    private _onReadyCallback?: () => void;
     private _controllerBus: ControllerBus = new ControllerBus();
 
     constructor(config: ISDKConfig, element: Element, options: IPlayerOptions) {
         this._config = config;
         this._options = options;
+
+        if (this._options.onReady !== undefined) {
+            this._readyCallback = this._options.onReady;
+        }
 
         if (isHTMLElement(element)) {
             this._ui.element = element as HTMLElement;
@@ -88,6 +97,10 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
             }
 
             this._attach();
+
+            if (this._options.autoPlay) {
+                this.play();
+            }
         }
     }
 
@@ -96,8 +109,20 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
             return;
         }
 
-        this._ui.backupElementPosition = this._ui.element.style.position;
-        this._ui.element.style.position = 'relative';
+        {
+            let div = document.createElement('div');
+            this._ui.wrapper = div;
+            div.style.width = this._options.width!;
+            div.style.height = this._options.height!;
+            div.style.position = 'relative';
+            div.style.backgroundSize = 'cover';
+
+            if (this._options.splashart !== undefined) {
+                div.style.backgroundImage = `url('${this._options.splashart}')`;
+            }
+
+            this._ui.element.appendChild(div);
+        }
 
         {
             let div = document.createElement('div');
@@ -107,7 +132,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
             div.style.position = 'absolute';
             div.style.left = '0';
             div.style.top = '0';
-            this._ui.element.appendChild(div);
+            this._ui.wrapper.appendChild(div);
         }
 
         {
@@ -122,7 +147,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
             div.style.flexDirection = 'column';
             div.style.justifyContent = 'center';
             div.style.alignItems = 'center';
-            this._ui.element.appendChild(div);
+            this._ui.wrapper.appendChild(div);
 
             {
                 let input = document.createElement('input');
@@ -215,18 +240,9 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     remove(): void {
-        if (this._ui.overlay !== undefined) {
-            this._ui.overlay.remove();
-            this._ui.overlay = undefined;
-        }
-
-        if (this._ui.base !== undefined) {
-            this._ui.base.remove();
-            this._ui.base = undefined;
-        }
-
-        if (this._ui.element !== undefined) {
-            this._ui.element.style.position = this._ui.backupElementPosition!;
+        if (this._ui.wrapper !== undefined) {
+            this._ui.wrapper.remove();
+            this._ui.wrapper = undefined;
         }
     }
     
@@ -240,7 +256,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     get onReady(): (() => void) | undefined {
-        return this._onReadyCallback;
+        return this._readyCallback;
     }
 
     set onReady(callback: (() => void) | undefined) {
@@ -278,7 +294,10 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
  * @returns {IPlayerOptions} Default options
  */
 export function defaultOptions(): IPlayerOptions {
-    return {};
+    return {
+        width: "100%",
+        height: "100%"
+    };
 }
 
 export interface GameSDKOptions {
@@ -330,7 +349,11 @@ export function init(config: ISDKConfig, element?: IPlayerOptions | Element | El
     }
 
     if (_elements == undefined) {
-        _elements = document.getElementsByClassName("moroboxai-player");
+        if (_options.element !== undefined) {
+            _elements = _options.element;
+        } else {
+            _elements = document.getElementsByClassName("moroboxai-player");
+        }
     }
 
     if (!isElementArray(_elements)) {
