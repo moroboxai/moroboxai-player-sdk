@@ -16,7 +16,7 @@ See:
 Using npm:
 
 ```bash
-npm i --save moroboxai-player-sdk
+npm install moroboxai-player-sdk --save
 ```
 
 ## License
