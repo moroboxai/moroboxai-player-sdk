@@ -24,9 +24,6 @@
     "url": "https://github.com/moroboxai/moroboxai-player-sdk/issues"
   },
   "homepage": "https://github.com/moroboxai/moroboxai-player-sdk#readme",
-  "dependencies": {
-    "moroboxai-game-sdk": "^0.1.0-alpha.9"
-  },
   "devDependencies": {
     "@babel/cli": "^7.17.6",
     "@babel/core": "^7.17.9",
@@ -46,7 +43,8 @@
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-terser": "^7.0.2",
     "ts-node": "^10.7.0",
-    "typescript": "^4.6.3"
+    "typescript": "^4.6.3",
+    "moroboxai-game-sdk": "^0.1.0-alpha.9"
   },
   "babel": {
     "presets": [
