@@ -1,21 +1,17 @@
-export interface IController {
-    // Unique ontroller id
-    id: number;
+import {IController} from 'moroboxai-game-sdk';
 
-    /*
-    * Send game state to this controller.
-    * @param {any} state - Game state
-    */
-    sendState(state: any): void;
-
+export interface IMoroboxAIController extends IController {
     /**
-     * Receive input from this controller.
-     * @returns {any} Input state
+     * Load an AI to this controller.
+     * @param {string} code - AI code 
      */
-    input(): any;
+    loadAI(code: string): void;
+
+    // Unload the AI from this controller
+    unloadAI(): void;
 }
 
-class Controller implements IController {
+class MoroboxAIController implements IMoroboxAIController {
     private _id: number = 0;
     private _ai: {
         update?: (state: any) => void
@@ -24,6 +20,14 @@ class Controller implements IController {
 
     get id(): number {
         return this._id;
+    }
+
+    get isBound(): boolean {
+        return false;
+    }
+
+    get label(): string {
+        return "";
     }
 
     constructor(id: number) {
@@ -36,7 +40,7 @@ class Controller implements IController {
         }
     }
 
-    input(): any {
+    inputs(): any {
         return this._input;
     }
 
@@ -56,15 +60,15 @@ class Controller implements IController {
 
 export class ControllerBus {
     // Connected controllers
-    private _controllers: Map<number, IController> = new Map();
+    private _controllers: Map<number, IMoroboxAIController> = new Map();
 
     get ids(): number[] {
         return [...this._controllers.keys()];
     }
 
     constructor() {
-        this._controllers.set(0, new Controller(0));
-        this._controllers.set(1, new Controller(1));
+        this._controllers.set(0, new MoroboxAIController(0));
+        this._controllers.set(1, new MoroboxAIController(1));
     }
 
     /**
@@ -72,7 +76,7 @@ export class ControllerBus {
      * @param {number} controllerId - Controller id
      * @returns {IController} Controller
      */
-    get(controllerId: number): IController | undefined {
+    get(controllerId: number): IMoroboxAIController | undefined {
         return this._controllers.get(controllerId);
     }
 
@@ -91,26 +95,5 @@ export class ControllerBus {
         if (controller !== undefined) {
             controller.sendState(state);
         }
-    }
-
-    /**
-     * Receive input for all or a single controller.
-     * @returns {any} Input state
-     */
-    input(controllerId?: number): any {
-        if (controllerId === undefined) {
-            const inputs: {[id: number]: any} = {};
-            for(let _ of this._controllers.values()) {
-                inputs[_.id] = _.input();
-            }
-            return inputs;
-        }
-
-        const controller = this._controllers.get(controllerId);
-        if (controller !== undefined) {
-            return controller.input;
-        }
-
-        return {};
     }
 }

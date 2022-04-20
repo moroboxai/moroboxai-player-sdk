@@ -1,5 +1,5 @@
 import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
-import {ControllerBus, IController} from './controller';
+import {ControllerBus, IMoroboxAIController} from './controller';
 import {GameServer} from './server';
 
 /**
@@ -50,10 +50,10 @@ export interface IMoroboxAIPlayer {
     pause(): void;
     /**
      * Get a controller by id.
-     * @param {number} id - Controller id
-     * @returns {IController} Controller
+     * @param {number} controllerId - Controller id
+     * @returns {IMoroboxAIController} Controller
      */
-    controller(id: number): IController | undefined;
+    controller(controllerId: number): IMoroboxAIController | undefined;
     // Remove the player from document
     remove(): void;
 }
@@ -255,6 +255,11 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
         return this._gameServer as MoroboxAIGameSDK.IGameServer;
     }
 
+    resize(width: number, height: number) {
+        this._ui.wrapper!.style.width = `${width}px`;
+        this._ui.wrapper!.style.height = `${height}px`;
+    }
+
     get onReady(): (() => void) | undefined {
         return this._readyCallback;
     }
@@ -274,18 +279,14 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     sendState(state: any, controllerId?: number): void {
         this._controllerBus.sendState(state, controllerId);
     }
-
-    input(controllerId?: number): any {
-        return this._controllerBus.input(controllerId);
+    
+    controller(id: number): IMoroboxAIController | undefined {
+        return this._controllerBus.get(id);
     }
 
     // IMoroboxAIPlayer interface
     play(): void {
         this._play();
-    }
-    
-    controller(id: number): IController | undefined {
-        return this._controllerBus.get(id);
     }
 }
 
