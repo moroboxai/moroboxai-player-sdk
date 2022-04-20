@@ -1,6 +1,8 @@
 import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
-import {ControllerBus, IMoroboxAIController} from './controller';
+import {ControllerBus, IInputController, IController} from './controller';
 import {GameServer} from './server';
+
+export {Inputs, IInputController, IController} from './controller';
 
 /**
  * Version of the SDK.
@@ -8,8 +10,12 @@ import {GameServer} from './server';
 export const VERSION: string = '0.1.0-alpha.3';
 
 export interface ISDKConfig {
+    // Create a controller listening for player inputs
+    inputController: () => IInputController;
+    // Create a file server for a given URL
     fileServer: (baseUrl: string) => MoroboxAIGameSDK.IFileServer;
-    zipServer: (baseUrl: string) => MoroboxAIGameSDK.IFileServer;
+    // Create a zip server for a given URL
+    zipServer: (zipUrl: string) => MoroboxAIGameSDK.IFileServer;
 }
 
 /**
@@ -51,9 +57,9 @@ export interface IMoroboxAIPlayer {
     /**
      * Get a controller by id.
      * @param {number} controllerId - Controller id
-     * @returns {IMoroboxAIController} Controller
+     * @returns {IController} Controller
      */
-    controller(controllerId: number): IMoroboxAIController | undefined;
+    controller(controllerId: number): IController | undefined;
     // Remove the player from document
     remove(): void;
 }
@@ -78,11 +84,14 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
         boot?: (player: MoroboxAIGameSDK.IPlayer) => MoroboxAIGameSDK.IGame
     } = {};
     private _game?: MoroboxAIGameSDK.IGame;
-    private _controllerBus: ControllerBus = new ControllerBus();
+    private _controllerBus: ControllerBus;
 
     constructor(config: ISDKConfig, element: Element, options: IPlayerOptions) {
         this._config = config;
         this._options = options;
+        this._controllerBus = new ControllerBus({
+            inputController: config.inputController
+        });
 
         if (this._options.onReady !== undefined) {
             this._readyCallback = this._options.onReady;
@@ -280,7 +289,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
         this._controllerBus.sendState(state, controllerId);
     }
     
-    controller(id: number): IMoroboxAIController | undefined {
+    controller(id: number): IController | undefined {
         return this._controllerBus.get(id);
     }
 
