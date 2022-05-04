@@ -45,11 +45,16 @@ export interface IPlayerOptions {
     splashart?: string,
     width?: string,
     height?: string,
+    // Play the game after init
     autoPlay?: boolean,
+    // Desired game speed
+    speed?: number,
     onReady?: () => void
 }
 
 export interface IMoroboxAIPlayer {
+    // Get/Set the game speed
+    speed: number;
     // Play the game
     play(): void;
     onReady?: () => void;
@@ -64,6 +69,113 @@ export interface IMoroboxAIPlayer {
     remove(): void;
 }
 
+class OverlayDiv {
+    el: HTMLElement;
+
+    constructor(root: HTMLElement) {
+        this.el = document.createElement('div');
+        this.el.style.width = '100%';
+        this.el.style.height = '100%';
+        this.el.style.position = 'absolute';
+        this.el.style.left = '0';
+        this.el.style.top = '0';
+        this.el.style.display = 'flex';
+        this.el.style.flexDirection = 'column';
+        this.el.style.justifyContent = 'center';
+        this.el.style.alignItems = 'center';
+        root.appendChild(this.el);
+    }
+
+    show() {
+        this.el.style.display = 'flex';
+    }
+
+    hide() {
+        this.el.style.display = 'none';
+    }
+
+    remove() {
+        this.el.remove();
+    }
+}
+
+class PlayOverlayDiv {
+    private _overlay: OverlayDiv;
+    private _input: HTMLInputElement;
+    onPlay?: () => void;
+
+    constructor(root: HTMLElement) {
+        this._overlay = new OverlayDiv(root);
+        this._input = document.createElement('input');
+        this._input.type = 'button';
+        this._input.value = 'Play';
+        this._input.onclick = () => {
+            if (this.onPlay) {
+                this.onPlay();
+            }
+        };
+        this._overlay.el.appendChild(this._input);
+        root.appendChild(this._overlay.el);
+    }
+
+    remove() {
+        this._overlay.remove();
+    }
+}
+
+class SettingsOverlayDiv {
+    private _overlay: OverlayDiv;
+    private _speed1: HTMLInputElement;
+    private _speed2: HTMLInputElement;
+    private _speed4: HTMLInputElement;
+    onSpeed?: (value: number) => void;
+
+    constructor(root: HTMLElement) {
+        this._overlay = new OverlayDiv(root);
+        this._speed1 = document.createElement('input');
+        this._speed1.type = 'button';
+        this._speed1.value = 'x1';
+        this._speed1.onclick = () => {
+            if (this.onSpeed) {
+                this.onSpeed(1);
+            }
+        };
+        this._speed2 = document.createElement('input');
+        this._speed2.type = 'button';
+        this._speed2.value = 'x2';
+        this._speed2.onclick = () => {
+            if (this.onSpeed) {
+                this.onSpeed(2);
+            }
+        };
+        this._speed4 = document.createElement('input');
+        this._speed4.type = 'button';
+        this._speed4.value = 'x4';
+        this._speed4.onclick = () => {
+            if (this.onSpeed) {
+                this.onSpeed(4);
+            }
+        };
+        this._overlay.el.appendChild(this._speed1);
+        this._overlay.el.appendChild(this._speed2);
+        this._overlay.el.appendChild(this._speed4);
+        this._overlay.hide();
+        root.appendChild(this._overlay.el);
+    }
+
+    onMouseEnter() {
+        this._overlay.show();
+    }
+
+    onMouseLeave() {
+        this._overlay.hide();
+    }
+
+    remove() {
+        this._overlay.remove();
+    }
+}
+
 // Player instance for controlling the game
 class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     private _config: ISDKConfig;
@@ -71,8 +183,8 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
         element?: HTMLElement;
         wrapper?: HTMLElement;
         base?: HTMLElement;
-        overlay?: HTMLElement;
-        playButton?: HTMLElement;
+        playOverlay?: PlayOverlayDiv;
+        settingsOverlay?: SettingsOverlayDiv;
     } = {};
     private _options: IPlayerOptions;
     private _readyCallback?: () => void;
@@ -121,6 +233,8 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
         {
             let div = document.createElement('div');
             this._ui.wrapper = div;
+            div.addEventListener('mouseenter', () => this._onMouseEnter());
+            div.addEventListener('mouseleave', () => this._onMouseLeave());
             div.style.width = this._options.width!;
             div.style.height = this._options.height!;
             div.style.position = 'relative';
@@ -144,29 +258,8 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
             this._ui.wrapper.appendChild(div);
         }
 
-        {
-            let div = document.createElement('div');
-            this._ui.overlay = div;
-            div.style.width = '100%';
-            div.style.height = '100%';
-            div.style.position = 'absolute';
-            div.style.left = '0';
-            div.style.top = '0';
-            div.style.display = 'flex';
-            div.style.flexDirection = 'column';
-            div.style.justifyContent = 'center';
-            div.style.alignItems = 'center';
-            this._ui.wrapper.appendChild(div);
-
-            {
-                let input = document.createElement('input');
-                this._ui.playButton = input;
-                input.type = 'button';
-                input.value = 'Play';
-                input.onclick = () => this._play();
-                div.appendChild(input);
-            }
-        }
+        this._ui.playOverlay = new PlayOverlayDiv(this._ui.wrapper);
+        this._ui.playOverlay.onPlay = () => this.play();
         /*this._ui.canvas = document.createElement('canvas');
         this._ui.canvas.style.width = '256px';
         this._ui.canvas.style.height = '256px';
@@ -232,8 +325,13 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     private _play(): void {
-        if (this._ui.playButton !== undefined) {
-            this._ui.playButton.style.display = 'none';
+        if (this._ui.playOverlay) {
+            this._ui.playOverlay.remove();
+        }
+
+        if (this._ui.wrapper) {
+            this._ui.settingsOverlay = new SettingsOverlayDiv(this._ui.wrapper);
+            this._ui.settingsOverlay.onSpeed = (value) => this.speed = value;
         }
 
         this._playTask = this._initGame().catch(reason => {
@@ -252,6 +350,18 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
         if (this._ui.wrapper !== undefined) {
             this._ui.wrapper.remove();
             this._ui.wrapper = undefined;
+        }
+    }
+
+    _onMouseEnter() {
+        if (this._ui.settingsOverlay) {
+            this._ui.settingsOverlay.onMouseEnter();
+        }
+    }
+
+    _onMouseLeave() {
+        if (this._ui.settingsOverlay) {
+            this._ui.settingsOverlay.onMouseLeave();
         }
     }
     
@@ -294,6 +404,20 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     // IMoroboxAIPlayer interface
+    get speed(): number {
+        if (this._game) {
+            return this._game?.speed;
+        }
+
+        return 1;
+    }
+
+    set speed(value: number) {
+        if (this._game) {
+            this._game.speed = value;
+        }
+    }
+
     play(): void {
         this._play();
     }
@@ -306,7 +430,8 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
 export function defaultOptions(): IPlayerOptions {
     return {
         width: "100%",
-        height: "100%"
+        height: "100%",
+        speed: 1
     };
 }
 
