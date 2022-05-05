@@ -1,5 +1,6 @@
 import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
 import {ControllerBus, IInputController, IController} from './controller';
+import {Overlay} from './overlay';
 import {GameServer} from './server';
 
 export {Inputs, IInputController, IController} from './controller';
@@ -7,7 +8,10 @@ export {Inputs, IInputController, IController} from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.3';
+export const VERSION: string = '0.1.0-alpha.4';
+
+// Force displaying the loading screen for x seconds
+const FORCE_LOADING_TIME = 1000;
 
 export interface ISDKConfig {
     // Create a controller listening for player inputs
@@ -52,11 +56,20 @@ export interface IPlayerOptions {
     onReady?: () => void
 }
 
-export interface IMoroboxAIPlayer {
+export interface IPlayer {
     // Get/Set the game speed
     speed: number;
+    // Get/Set the player's width
+    width: number;
+    // Get/Set the player's height
+    height: number;
+    // If the player is loading the game
+    isLoading: boolean;
+    // If the game has been loaded and is playing
+    isPlaying: boolean;
     // Play the game
     play(): void;
+    // Called when the game starts playing
     onReady?: () => void;
     pause(): void;
     /**
@@ -69,127 +82,28 @@ export interface IMoroboxAIPlayer {
     remove(): void;
 }
 
-class OverlayDiv {
-    el: HTMLElement;
-
-    constructor(root: HTMLElement) {
-        this.el = document.createElement('div');
-        this.el.style.width = '100%';
-        this.el.style.height = '100%';
-        this.el.style.position = 'absolute';
-        this.el.style.left = '0';
-        this.el.style.top = '0';
-        this.el.style.display = 'flex';
-        this.el.style.flexDirection = 'column';
-        this.el.style.justifyContent = 'center';
-        this.el.style.alignItems = 'center';
-        root.appendChild(this.el);
-    }
-
-    show() {
-        this.el.style.display = 'flex';
-    }
-
-    hide() {
-        this.el.style.display = 'none';
-    }
-
-    remove() {
-        this.el.remove();
-    }
-}
-
-class PlayOverlayDiv {
-    private _overlay: OverlayDiv;
-    private _input: HTMLInputElement;
-    onPlay?: () => void;
-
-    constructor(root: HTMLElement) {
-        this._overlay = new OverlayDiv(root);
-        this._input = document.createElement('input');
-        this._input.type = 'button';
-        this._input.value = 'Play';
-        this._input.onclick = () => {
-            if (this.onPlay) {
-                this.onPlay();
-            }
-        };
-        this._overlay.el.appendChild(this._input);
-        root.appendChild(this._overlay.el);
-    }
-
-    remove() {
-        this._overlay.remove();
-    }
-}
-
-class SettingsOverlayDiv {
-    private _overlay: OverlayDiv;
-    private _speed1: HTMLInputElement;
-    private _speed2: HTMLInputElement;
-    private _speed4: HTMLInputElement;
-    onSpeed?: (value: number) => void;
-
-    constructor(root: HTMLElement) {
-        this._overlay = new OverlayDiv(root);
-        this._speed1 = document.createElement('input');
-        this._speed1.type = 'button';
-        this._speed1.value = 'x1';
-        this._speed1.onclick = () => {
-            if (this.onSpeed) {
-                this.onSpeed(1);
-            }
-        };
-        this._speed2 = document.createElement('input');
-        this._speed2.type = 'button';
-        this._speed2.value = 'x2';
-        this._speed2.onclick = () => {
-            if (this.onSpeed) {
-                this.onSpeed(2);
-            }
-        };
-        this._speed4 = document.createElement('input');
-        this._speed4.type = 'button';
-        this._speed4.value = 'x4';
-        this._speed4.onclick = () => {
-            if (this.onSpeed) {
-                this.onSpeed(4);
-            }
-        };
-        this._overlay.el.appendChild(this._speed1);
-        this._overlay.el.appendChild(this._speed2);
-        this._overlay.el.appendChild(this._speed4);
-        this._overlay.hide();
-        root.appendChild(this._overlay.el);
-    }
-
-    onMouseEnter() {
-        this._overlay.show();
-    }
-
-    onMouseLeave() {
-        this._overlay.hide();
-    }
-
-    remove() {
-        this._overlay.remove();
-    }
+// Internal player state
+enum EPlayerState {
+    Idle,
+    Loading,
+    BecomePlaying,
+    Playing
 }
 
 // Player instance for controlling the game
-class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
+class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
     private _config: ISDKConfig;
+    private _state: EPlayerState = EPlayerState.Idle;
     private _ui: {
         element?: HTMLElement;
         wrapper?: HTMLElement;
         base?: HTMLElement;
-        playOverlay?: PlayOverlayDiv;
-        settingsOverlay?: SettingsOverlayDiv;
+        overlay?: Overlay;
     } = {};
     private _options: IPlayerOptions;
     private _readyCallback?: () => void;
-    private _isReady: boolean = false;
     private _playTask?: Promise<void>;
+    private _startLoadingDate?: Date;
     private _gameServer?: MoroboxAIGameSDK.IGameServer;
     private _header?: MoroboxAIGameSDK.GameHeader;
     private _exports: {
@@ -197,6 +111,14 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     } = {};
     private _game?: MoroboxAIGameSDK.IGame;
     private _controllerBus: ControllerBus;
+
+    get isLoading(): boolean {
+        return this._state == EPlayerState.Loading;
+    }
+
+    get isPlaying(): boolean {
+        return this._state == EPlayerState.Playing;
+    }
 
     constructor(config: ISDKConfig, element: Element, options: IPlayerOptions) {
         this._config = config;
@@ -234,6 +156,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
             let div = document.createElement('div');
             this._ui.wrapper = div;
             div.addEventListener('mouseenter', () => this._onMouseEnter());
+            div.addEventListener('mousemove', () => this._onMouseMove());
             div.addEventListener('mouseleave', () => this._onMouseLeave());
             div.style.width = this._options.width!;
             div.style.height = this._options.height!;
@@ -258,12 +181,9 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
             this._ui.wrapper.appendChild(div);
         }
 
-        this._ui.playOverlay = new PlayOverlayDiv(this._ui.wrapper);
-        this._ui.playOverlay.onPlay = () => this.play();
-        /*this._ui.canvas = document.createElement('canvas');
-        this._ui.canvas.style.width = '256px';
-        this._ui.canvas.style.height = '256px';
-        this._ui.element.appendChild(this._ui.canvas);*/
+        this._ui.overlay = new Overlay(this._ui.wrapper);
+        this._ui.overlay.onPlay = () => this.play();
+        this._ui.overlay.onSpeed = (value: number) => this.speed = value;
     }
 
     // This task is for loading the game
@@ -318,20 +238,21 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
 
     private _notifyReady(): void {
         this._playTask = undefined;
-        this._isReady = true;
         if (this._readyCallback !== undefined) {
             this._readyCallback();
         }
     }
 
     private _play(): void {
-        if (this._ui.playOverlay) {
-            this._ui.playOverlay.remove();
+        if (this._state != EPlayerState.Idle) {
+            return;
         }
 
-        if (this._ui.wrapper) {
-            this._ui.settingsOverlay = new SettingsOverlayDiv(this._ui.wrapper);
-            this._ui.settingsOverlay.onSpeed = (value) => this.speed = value;
+        this._state = EPlayerState.Loading;
+        this._startLoadingDate = new Date();
+
+        if (this._ui.overlay) {
+            this._ui.overlay.loading();
         }
 
         this._playTask = this._initGame().catch(reason => {
@@ -341,27 +262,38 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     pause(): void {
-        if (!this._isReady) {
+        if (!this.isPlaying) {
             return;
         }
     }
 
     remove(): void {
-        if (this._ui.wrapper !== undefined) {
+        if (this._ui.overlay) {
+            this._ui.overlay.remove();
+            this._ui.overlay = undefined;
+        }
+
+        if (this._ui.wrapper) {
             this._ui.wrapper.remove();
             this._ui.wrapper = undefined;
         }
     }
 
     _onMouseEnter() {
-        if (this._ui.settingsOverlay) {
-            this._ui.settingsOverlay.onMouseEnter();
+        if (this._ui.overlay) {
+            this._ui.overlay.mouseEnter();
+        }
+    }
+
+    _onMouseMove() {
+        if (this._ui.overlay) {
+            this._ui.overlay.mouseMove();
         }
     }
 
     _onMouseLeave() {
-        if (this._ui.settingsOverlay) {
-            this._ui.settingsOverlay.onMouseLeave();
+        if (this._ui.overlay) {
+            this._ui.overlay.mouseLeave();
         }
     }
     
@@ -375,24 +307,61 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     resize(width: number, height: number) {
-        this._ui.wrapper!.style.width = `${width}px`;
-        this._ui.wrapper!.style.height = `${height}px`;
+        if (this._ui.wrapper) {
+            this._ui.wrapper.style.width = `${width}px`;
+            this._ui.wrapper.style.height = `${height}px`;
+        }
+
+        if (this._game && this.isPlaying) {
+            this._game.resize();
+        }
     }
 
+    // Allow SDK user to know when the game is playing
     get onReady(): (() => void) | undefined {
         return this._readyCallback;
     }
 
     set onReady(callback: (() => void) | undefined) {
         this._readyCallback = callback;
-        if (this._isReady) {
+        if (this.isPlaying) {
             this._notifyReady();
         }
     }
 
-    ready(): void {
-        console.log('game is loaded and ready');
+    private _ready() {
+        if (this._state !== EPlayerState.BecomePlaying) {
+            return;
+        }
+
+        this._state = EPlayerState.Playing;
+
+        if (this._ui.overlay) {
+            this._ui.overlay.ready();
+        }
+
+        if (this._game) {
+            this._game.play();
+        }
+
         this._notifyReady();
+    }
+
+    // Called by the game when it's loaded and ready to play
+    ready(): void {
+        if (this._state != EPlayerState.Loading) {
+            return;
+        }
+
+        this._state = EPlayerState.BecomePlaying;
+
+        const timeRemaining = FORCE_LOADING_TIME - (+new Date() - +this._startLoadingDate!);
+        if (timeRemaining > 0) {
+            setTimeout(() => this._ready(), timeRemaining);
+            return;
+        }
+
+        this._ready();
     }
     
     sendState(state: any, controllerId?: number): void {
@@ -403,7 +372,7 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
         return this._controllerBus.get(id);
     }
 
-    // IMoroboxAIPlayer interface
+    // IPlayer interface
     get speed(): number {
         if (this._game) {
             return this._game?.speed;
@@ -416,6 +385,22 @@ class MoroboxAIPlayer implements IMoroboxAIPlayer, MoroboxAIGameSDK.IPlayer {
         if (this._game) {
             this._game.speed = value;
         }
+    }
+
+    get width(): number {
+        return this._ui.wrapper ? this._ui.wrapper.clientWidth : 0;
+    }
+
+    set width(value: number) {
+        this.resize(value, this.height);
+    }
+
+    get height(): number {
+        return this._ui.wrapper ? this._ui.wrapper.clientHeight : 0;
+    }
+
+    set height(value: number) {
+        this.resize(this.width, value);
     }
 
     play(): void {
@@ -452,24 +437,24 @@ function isPlayerOptions(_?: | IPlayerOptions | Element | Element[] | HTMLCollec
     return _ !== undefined && !isElementArray(_) && !("className" in _);
 }
 
-function createPlayer(config: ISDKConfig, element: Element, options: IPlayerOptions): IMoroboxAIPlayer {
+function createPlayer(config: ISDKConfig, element: Element, options: IPlayerOptions): IPlayer {
     return new MoroboxAIPlayer(config, element, options);
 }
 
-export function init(config: ISDKConfig) : IMoroboxAIPlayer | IMoroboxAIPlayer[];
-export function init(config: ISDKConfig, options: IPlayerOptions) : IMoroboxAIPlayer | IMoroboxAIPlayer[];
-export function init(config: ISDKConfig, element: Element) : IMoroboxAIPlayer;
-export function init(config: ISDKConfig, element: Element[] | HTMLCollectionOf<Element>) : IMoroboxAIPlayer[];
-export function init(config: ISDKConfig, element: Element, options: IPlayerOptions) : IMoroboxAIPlayer;
-export function init(config: ISDKConfig, element: Element[] | HTMLCollectionOf<Element>, options: IPlayerOptions) : IMoroboxAIPlayer[];
-export function init(config: ISDKConfig, element?: IPlayerOptions | Element | Element[] | HTMLCollectionOf<Element>, options?: IPlayerOptions) : IMoroboxAIPlayer | IMoroboxAIPlayer[];
+export function init(config: ISDKConfig) : IPlayer | IPlayer[];
+export function init(config: ISDKConfig, options: IPlayerOptions) : IPlayer | IPlayer[];
+export function init(config: ISDKConfig, element: Element) : IPlayer;
+export function init(config: ISDKConfig, element: Element[] | HTMLCollectionOf<Element>) : IPlayer[];
+export function init(config: ISDKConfig, element: Element, options: IPlayerOptions) : IPlayer;
+export function init(config: ISDKConfig, element: Element[] | HTMLCollectionOf<Element>, options: IPlayerOptions) : IPlayer[];
+export function init(config: ISDKConfig, element?: IPlayerOptions | Element | Element[] | HTMLCollectionOf<Element>, options?: IPlayerOptions) : IPlayer | IPlayer[];
 
 /**
  * Initialize player on one or multiple HTML elements.
  * @param {HTMLElement} element Element to wrap
  * @param {IPlayerOptions} options Options for initializing the player
  */
-export function init(config: ISDKConfig, element?: IPlayerOptions | Element | Element[] | HTMLCollectionOf<Element>, options?: IPlayerOptions) : IMoroboxAIPlayer | IMoroboxAIPlayer[] {
+export function init(config: ISDKConfig, element?: IPlayerOptions | Element | Element[] | HTMLCollectionOf<Element>, options?: IPlayerOptions) : IPlayer | IPlayer[] {
     let _elements: undefined | Element | Element[] | HTMLCollectionOf<Element> = undefined;
     let _options: IPlayerOptions = defaultOptions();
 
@@ -495,5 +480,5 @@ export function init(config: ISDKConfig, element?: IPlayerOptions | Element | El
         return createPlayer(config, _elements, _options);
     }
 
-    return Array.prototype.map.call(_elements, _ => createPlayer(config, _, _options)) as IMoroboxAIPlayer[];
+    return Array.prototype.map.call(_elements, _ => createPlayer(config, _, _options)) as IPlayer[];
 }

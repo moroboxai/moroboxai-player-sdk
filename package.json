@@ -1,6 +1,6 @@
 {
   "name": "moroboxai-player-sdk",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "MoroboxAI SDK for embedding games",
   "author": "moroboxai",
   "main": "./lib/cjs/index.js",
@@ -39,7 +39,7 @@
     "@types/mocha": "^9.1.0",
     "chai": "^4.3.6",
     "mocha": "^9.2.2",
-    "moroboxai-game-sdk": "^0.1.0-alpha.9",
+    "moroboxai-game-sdk": "^0.1.0-alpha.10",
     "rollup": "^2.70.1",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-terser": "^7.0.2",
