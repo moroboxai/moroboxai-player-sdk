@@ -8,7 +8,7 @@ export {Inputs, IInputController, IController} from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.4';
+export const VERSION: string = '0.1.0-alpha.5';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -225,7 +225,7 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
     private _loadGame(): Promise<void> {
         console.log('load game...');
         return this._gameServer!.get(this._header!.boot).then(data => {
-            (new Function('exports', data))(this._exports);
+            (new Function('exports', 'module', data))(this._exports, undefined);
             if (this._exports.boot === undefined) {
                 return Promise.reject('missing boot function');
             }
