@@ -4,7 +4,7 @@
 ![Node.js CI](https://github.com/moroboxai/moroboxai-player-sdk/workflows/Node.js%20CI/badge.svg)
 [![gitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/moroboxai/moroboxai-player-sdk/blob/master/LICENSE)
 
-This package provides the core functionalities for running MoroboxAI games on various platforms, but lacks the gutter that is required for some platform-specific functionalities.
+This package provides the core functionalities for running [MoroboxAI](https://github.com/moroboxai) games on various platforms, but lacks the gutter that is required for some platform-specific functionalities.
 
 See:
   * [moroboxai](https://github.com/moroboxai/moroboxai): for running games on the desktop with [Electron](https://www.electronjs.org/)
