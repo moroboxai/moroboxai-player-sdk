@@ -8,7 +8,7 @@ export {Inputs, IInputController, IController} from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.6';
+export const VERSION: string = '0.1.0-alpha.7';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -44,16 +44,18 @@ function createFileServer(sdkConfig: ISDKConfig, baseUrl: string): MoroboxAIGame
 
 // Possible options for initializing the player
 export interface IPlayerOptions {
-    element?: Element | Element[] | HTMLCollectionOf<Element>,
-    url?: string,
-    splashart?: string,
-    width?: string,
-    height?: string,
+    element?: Element | Element[] | HTMLCollectionOf<Element>;
+    url?: string;
+    splashart?: string;
+    // Player size in pixels
+    width?: number;
+    height?: number;
+    resizable?: boolean;
     // Play the game after init
-    autoPlay?: boolean,
+    autoPlay?: boolean;
     // Desired game speed
-    speed?: number,
-    onReady?: () => void
+    speed?: number;
+    onReady?: () => void;
 }
 
 export interface IPlayer {
@@ -90,8 +92,71 @@ enum EPlayerState {
     Playing
 }
 
+class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
+    private _player: MoroboxAIGameSDK.IPlayer;
+
+    constructor(player: MoroboxAIGameSDK.IPlayer) {
+        this._player = player;
+    }
+
+    get root(): HTMLElement {
+        return this._player.root;
+    }
+
+    get gameServer(): MoroboxAIGameSDK.IGameServer {
+        return this._player.gameServer;
+    }
+
+    get width(): number {
+        return this._player.width;
+    }
+
+    set width(value: number) {
+        this.resize({width: value});
+    }
+
+    get height(): number {
+        return this._player.height;
+    }
+
+    set height(value: number) {
+        this.resize({height: value});
+    }
+
+    get isResizable(): boolean {
+        return this._player.isResizable;
+    }
+
+    get speed(): number {
+        return this._player.speed;
+    }
+
+    resize(width: {width?: number, height?: number} | number, height?: number): void {
+        if (!this.isResizable) return;
+
+        if (typeof width === 'object') {
+            this._player.resize(width);
+        } else {
+            this._player.resize(width, height!);
+        }
+    }
+
+    ready(): void {
+        this._player.ready();
+    }
+
+    sendState(state: any, controllerId?: number | undefined): void {
+        this._player.sendState(state, controllerId);
+    }
+
+    controller(controllerId: number): MoroboxAIGameSDK.IController | undefined {
+        return this._player.controller(controllerId);
+    }
+}
+
 // Player instance for controlling the game
-class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
+class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
+    private _proxy: PlayerProxy;
     private _config: ISDKConfig;
     private _state: EPlayerState = EPlayerState.Idle;
     private _ui: {
@@ -111,6 +176,7 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
     } = {};
     private _game?: MoroboxAIGameSDK.IGame;
     private _controllerBus: ControllerBus;
+    private _speed: number = 1;
 
     get isLoading(): boolean {
         return this._state == EPlayerState.Loading;
@@ -121,6 +187,7 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     constructor(config: ISDKConfig, element: Element, options: IPlayerOptions) {
+        this._proxy = new PlayerProxy(this);
         this._config = config;
         this._options = options;
         this._controllerBus = new ControllerBus({
@@ -158,8 +225,6 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
             div.addEventListener('mouseenter', () => this._onMouseEnter());
             div.addEventListener('mousemove', () => this._onMouseMove());
             div.addEventListener('mouseleave', () => this._onMouseLeave());
-            div.style.width = this._options.width!;
-            div.style.height = this._options.height!;
             div.style.position = 'relative';
             div.style.backgroundSize = 'cover';
 
@@ -180,6 +245,8 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
             div.style.top = '0';
             this._ui.wrapper.appendChild(div);
         }
+
+        this.resize({width: this._options.width, height: this._options.height});
 
         this._ui.overlay = new Overlay(this._ui.wrapper);
         this._ui.overlay.onPlay = () => this.play();
@@ -219,6 +286,8 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
             this._header = header;
             console.log('game header loaded');
             console.log(header);
+
+            this._proxy.resize({width: header.width, height: header.height});
         });
     }
 
@@ -251,7 +320,7 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
                 return Promise.reject('missing boot function');
             }
 
-            this._game = this._exports.boot(this);
+            this._game = this._exports.boot(this._proxy);
             console.log(this._game);
             return Promise.resolve();
         });  
@@ -327,10 +396,26 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
         return this._gameServer as MoroboxAIGameSDK.IGameServer;
     }
 
-    resize(width: number, height: number) {
-        if (this._ui.wrapper) {
+    resize(width: number, height: number): void;
+    resize(options: {width?: number, height?: number}): void;
+    resize(width?: {width?: number, height?: number} | number, height?: number) {
+        if (this._ui.wrapper === undefined) return;
+
+        if (typeof width !== "number") {
+            height = width!.height;
+            width = width!.width;
+        }
+
+        if (width !== undefined) {
             this._ui.wrapper.style.width = `${width}px`;
+        } else {
+            this._ui.wrapper.style.width = '100%';
+        }
+
+        if (height !== undefined) {
             this._ui.wrapper.style.height = `${height}px`;
+        } else {
+            this._ui.wrapper.style.height = '100%';
         }
 
         if (this._game && this.isPlaying) {
@@ -395,17 +480,11 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
     // IPlayer interface
     get speed(): number {
-        if (this._game) {
-            return this._game?.speed;
-        }
-
-        return 1;
+        return this._speed;
     }
 
     set speed(value: number) {
-        if (this._game) {
-            this._game.speed = value;
-        }
+        this._speed = value;
     }
 
     get width(): number {
@@ -413,7 +492,7 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     set width(value: number) {
-        this.resize(value, this.height);
+        this.resize({width: value});
     }
 
     get height(): number {
@@ -421,7 +500,11 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     set height(value: number) {
-        this.resize(this.width, value);
+        this.resize({height: value});
+    }
+
+    get isResizable(): boolean {
+        return this._options.resizable === true;
     }
 
     play(): void {
@@ -435,8 +518,7 @@ class MoroboxAIPlayer implements IPlayer, MoroboxAIGameSDK.IPlayer {
  */
 export function defaultOptions(): IPlayerOptions {
     return {
-        width: "100%",
-        height: "100%",
+        resizable: true,
         speed: 1
     };
 }
@@ -459,7 +541,7 @@ function isPlayerOptions(_?: | IPlayerOptions | Element | Element[] | HTMLCollec
 }
 
 function createPlayer(config: ISDKConfig, element: Element, options: IPlayerOptions): IPlayer {
-    return new MoroboxAIPlayer(config, element, options);
+    return new Player(config, element, options);
 }
 
 export function init(config: ISDKConfig) : IPlayer | IPlayer[];
