@@ -176,6 +176,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
     } = {};
     private _game?: MoroboxAIGameSDK.IGame;
     private _controllerBus: ControllerBus;
+    private _resizeListener?: () => void;
     private _speed: number = 1;
 
     get isLoading(): boolean {
@@ -251,6 +252,9 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         this._ui.overlay = new Overlay(this._ui.wrapper);
         this._ui.overlay.onPlay = () => this.play();
         this._ui.overlay.onSpeed = (value: number) => this.speed = value;
+
+        this._resizeListener = () => this._onResize();
+        window.addEventListener('resize', this._resizeListener);
     }
 
     // This task is for loading the game
@@ -358,6 +362,10 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
     }
 
     remove(): void {
+        if (this._resizeListener !== undefined) {
+            window.removeEventListener('resize', this._resizeListener);
+        }
+        
         if (this._ui.overlay) {
             this._ui.overlay.remove();
             this._ui.overlay = undefined;
@@ -418,6 +426,10 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             this._ui.wrapper.style.height = '100%';
         }
 
+        this._onResize();
+    }
+
+    private _onResize(): void {
         if (this._game && this.isPlaying) {
             this._game.resize();
         }
