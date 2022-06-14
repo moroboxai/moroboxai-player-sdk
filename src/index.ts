@@ -8,7 +8,7 @@ export {Inputs, IInputController, IController} from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.7';
+export const VERSION: string = '0.1.0-alpha.8';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
