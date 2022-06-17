@@ -8,7 +8,7 @@ export {Inputs, IInputController, IController} from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.8';
+export const VERSION: string = '0.1.0-alpha.9';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -129,6 +129,10 @@ class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
 
     get speed(): number {
         return this._player.speed;
+    }
+
+    get header(): MoroboxAIGameSDK.GameHeader {
+        return this._player.header;
     }
 
     resize(width: {width?: number, height?: number} | number, height?: number): void {
@@ -285,17 +289,17 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
     // This task is for loading the header.json file
     private _loadHeader(): Promise<void> {
-        console.log('load game header...');
+        console.log('load header...');
         return this._gameServer!.gameHeader().then((header: MoroboxAIGameSDK.GameHeader) => {
             this._header = header;
-            console.log('game header loaded');
+            console.log('header loaded');
             console.log(header);
 
             this._proxy.resize({width: header.width, height: header.height});
         });
     }
 
-    private _load_boot_function(data: string) {
+    private _getBootFunction(data: string) {
         let _exports: any = {};
         let _module = {exports: {boot: undefined}};
         const result = (new Function('exports', 'module', 'define', data))(_exports, _module, undefined);
@@ -315,19 +319,45 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         }
     }
 
-    private _loadGame(): Promise<void> {
-        console.log('load game...');
+    private _loadBoot(): Promise<void> {
+        console.log('load boot...');
+        const boot = this._header!.boot;
+        if (!boot.endsWith('.js')) {
+            // boot is not a js file, maybe a module
+            return new Promise((resolve, reject) => {
+                const m = (window as any)[boot];
+                if (m === undefined || m.boot === undefined) {
+                    return reject('invalid boot module');
+                }
+
+                this._exports.boot = m.boot;
+
+                return resolve();
+            });
+        }
+
+        // load boot from a file
         return this._gameServer!.get(this._header!.boot).then(data => {
-            this._load_boot_function(data);
+            this._getBootFunction(data);
 
-            if (this._exports.boot === undefined) {
-                return Promise.reject('missing boot function');
-            }
-
-            this._game = this._exports.boot(this._proxy);
-            console.log(this._game);
             return Promise.resolve();
         });  
+    }
+
+    private _loadGame(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this._loadBoot().then(() => {
+                if (this._exports.boot === undefined) {
+                    return reject('missing boot');
+                }
+
+                console.log('boot loaded');
+                this._game = this._exports.boot(this._proxy);
+                console.log(this._game);
+
+                return resolve();
+            });
+        });
     }
 
     private _notifyReady(): void {
@@ -517,6 +547,10 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
     get isResizable(): boolean {
         return this._options.resizable === true;
+    }
+
+    get header(): MoroboxAIGameSDK.GameHeader {
+        return this._header!;
     }
 
     play(): void {
