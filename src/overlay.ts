@@ -1,5 +1,13 @@
 import {Spinner} from './spinner'
 
+export interface IOverlay {
+    show(): void;
+    hide(): void;
+    mouseEnter(): void;
+    mouseMove(): void;
+    mouseLeave(): void;
+}
+
 class OverlayDiv {
     el: HTMLElement;
 
@@ -34,7 +42,7 @@ class OverlayDiv {
     }
 }
 
-class PlayOverlayDiv {
+class PlayOverlayDiv implements IOverlay {
     private _overlay: OverlayDiv;
     private _input: HTMLInputElement;
     onPlay?: () => void;
@@ -53,12 +61,29 @@ class PlayOverlayDiv {
         root.appendChild(this._overlay.el);
     }
 
+    show() {
+        this._overlay.show();
+    }
+
+    hide() {
+        this._overlay.hide();
+    }
+
+    mouseEnter() {
+    }
+
+    mouseMove() {
+    }
+
+    mouseLeave() {
+    }
+
     remove() {
         this._overlay.remove();
     }
 }
 
-class LoadingOverlayDiv {
+class LoadingOverlayDiv implements IOverlay {
     private _overlay: OverlayDiv;
 
     constructor(root: HTMLElement) {
@@ -68,12 +93,29 @@ class LoadingOverlayDiv {
         root.appendChild(this._overlay.el);
     }
 
+    show() {
+        this._overlay.show();
+    }
+
+    hide() {
+        this._overlay.hide();
+    }
+
+    mouseEnter() {
+    }
+
+    mouseMove() {
+    }
+
+    mouseLeave() {
+    }
+
     remove() {
         this._overlay.remove();
     }
 }
 
-class SettingsOverlayDiv {
+class SettingsOverlayDiv implements IOverlay {
     private _overlay: OverlayDiv;
     private _speed1: HTMLInputElement;
     private _speed2: HTMLInputElement;
@@ -113,15 +155,31 @@ class SettingsOverlayDiv {
         root.appendChild(this._overlay.el);
     }
 
-    mouseEnter() {
+    playing(): void {
+
+    }
+
+    paused(): void {
+        
+    }
+
+    show() {
         this._overlay.show();
+    }
+
+    hide() {
+        this._overlay.hide();
+    }
+
+    mouseEnter() {
+        this.show();
     }
 
     mouseMove() {
     }
 
     mouseLeave() {
-        this._overlay.hide();
+        this.hide();
     }
 
     remove() {
@@ -129,39 +187,34 @@ class SettingsOverlayDiv {
     }
 }
 
-export class Overlay {
+export class Overlay implements IOverlay {
     // Called when the play button is clicked
     onPlay?: () => void;
     // Called when the game speed is selected
     onSpeed?: (value: number) => void;
 
     private _root: HTMLElement;
-    private _playOverlay?: PlayOverlayDiv;
-    private _loadingOverlay?: LoadingOverlayDiv;
-    private _settingsOverlay?: SettingsOverlayDiv;
+    private _playOverlay: PlayOverlayDiv;
+    private _loadingOverlay: LoadingOverlayDiv;
+    private _settingsOverlay: SettingsOverlayDiv;
+    private _selectedOverlay: IOverlay;
 
     constructor(root: HTMLElement) {
         this._root = root;
+
         this._playOverlay = new PlayOverlayDiv(root);
+        this._selectedOverlay = this._playOverlay;
         this._playOverlay.onPlay = () => {
             if (this.onPlay) {
                 this.onPlay();
             }
         };
-    }
-
-    // Called when the game is loading
-    loading() {
-        this.remove();
 
         this._loadingOverlay = new LoadingOverlayDiv(this._root);
-    }
-
-    // Called when the game is ready
-    ready() {
-        this.remove();
+        this._loadingOverlay.hide();
 
         this._settingsOverlay = new SettingsOverlayDiv(this._root);
+        this._settingsOverlay.hide();
         this._settingsOverlay.onSpeed = (value: number) => {
             if (this.onSpeed) {
                 this.onSpeed(value);
@@ -169,38 +222,54 @@ export class Overlay {
         };
     }
 
+    // Called when the game is stopped
+    stopped() {
+        this._selectedOverlay.hide();
+        this._selectedOverlay = this._playOverlay;
+        this._playOverlay.show();
+    }
+
+    // Called when the game is loading
+    loading() {
+        this._playOverlay.hide();
+        this._selectedOverlay = this._loadingOverlay;
+        this._loadingOverlay.show();
+    }
+
+    // Called when the game is playing
+    playing() {
+        this._loadingOverlay.hide();
+        this._selectedOverlay = this._settingsOverlay;
+        this._settingsOverlay.hide();
+        this._settingsOverlay.playing();
+    }
+
+    // Called when the game is playing
+    paused() {
+        this._settingsOverlay.paused();
+    }
+
+    show(): void {
+    }
+
+    hide(): void {
+    }
+
     mouseEnter() {
-        if (this._settingsOverlay) {
-            this._settingsOverlay.mouseEnter();
-        }
+        this._selectedOverlay.mouseEnter();
     }
 
     mouseMove() {
-        if (this._settingsOverlay) {
-            this._settingsOverlay.mouseMove();
-        }
+        this._selectedOverlay.mouseMove();
     }
 
     mouseLeave() {
-        if (this._settingsOverlay) {
-            this._settingsOverlay.mouseLeave();
-        }
+        this._selectedOverlay.mouseLeave();
     }
 
     remove() {
-        if (this._playOverlay) {
-            this._playOverlay.remove();
-            this._playOverlay = undefined;
-        }
-
-        if (this._loadingOverlay) {
-            this._loadingOverlay.remove();
-            this._loadingOverlay = undefined;
-        }
-
-        if (this._settingsOverlay) {
-            this._settingsOverlay.remove();
-            this._settingsOverlay = undefined;
-        }
+        this._playOverlay.remove();
+        this._loadingOverlay.remove();
+        this._settingsOverlay.remove();
     }
 }

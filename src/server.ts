@@ -1,7 +1,8 @@
 import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
+import YAML from 'yaml';
 
 // Name of the header file
-const HEADER_FILE = "header.json";
+const HEADER_FILE = "header.yml";
 
 export class GameServer implements MoroboxAIGameSDK.IGameServer {
     private _server: MoroboxAIGameSDK.IFileServer;
@@ -28,7 +29,7 @@ export class GameServer implements MoroboxAIGameSDK.IGameServer {
 
     gameHeader(): Promise<MoroboxAIGameSDK.GameHeader> {
         return this._server.get(HEADER_FILE).then(data => {
-            return JSON.parse(data) as MoroboxAIGameSDK.GameHeader;
+            return YAML.parse(data) as MoroboxAIGameSDK.GameHeader;
         });
     }
     
