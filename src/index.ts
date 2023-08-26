@@ -8,7 +8,7 @@ export { IInputController, IController } from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.13';
+export const VERSION: string = '0.1.0-alpha.14';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -126,6 +126,9 @@ export interface IPlayer {
     // Resize the player
     resize(options: { width?: number, height?: number }): void;
     resize(width: number, height: number): void;
+
+    // Called by the game when ready
+    ready(): void;
 }
 
 // Internal player state
@@ -215,6 +218,10 @@ class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
         } else {
             this._player.resize(width, height!);
         }
+    }
+
+    ready() {
+        this._player.ready();
     }
 
     getController(controllerId: number): MoroboxAIGameSDK.IController | undefined {
