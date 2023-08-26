@@ -1,98 +1,80 @@
 import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
 
-// The possible inputs for the MoroboxAI
-export interface Inputs {
-    up?: boolean;
-    down?: boolean;
-    left?: boolean;
-    right?: boolean;
-}
-
-// Controller handling keyboard/gamepad inputs
+/**
+ * Interface for the keyboard or gamepad.
+ */
 export interface IInputController {
-    /**
-     * Detach the controller to stop listening for inputs.
-     */
-    remove(): void;
-
-    /**
-     * Return the inputs state.
-     * @returns {Inputs} State
-     */
-    inputs(): Inputs;
+    // Pressed inputs
+    inputs: MoroboxAIGameSDK.IInputs;
 }
 
-// Extends MoroboxAIGameSDK.IController features
 export interface IController extends MoroboxAIGameSDK.IController {
     /**
-     * Load an AI to this controller.
-     * @param {string} code - AI code 
+     * Get inputs base on game state.
+     * @param {object} state - game state
+     * @returns {IInputs} Inputs
      */
-    loadAI(code: string): void;
-
-    /**
-     * Load an AI to this controller.
-     * @param {string} type - Type of code
-     * @param {string} code - AI code 
-     */
-    loadAI(type: string, code: string): void;
-
-    /**
-     * Unload the AI from this controller.
-     */
-    unloadAI(): void;
+    inputs(state: object): MoroboxAIGameSDK.IInputs;
 }
 
-class AIController implements IInputController {
+class AgentController implements IController {
     private _context: {
-        update?: (state: any) => void
+        // Label to display for this agent
+        LABEL?: string;
+        // Function exported from the code to compute the next input
+        inputs?: (state: object) => MoroboxAIGameSDK.IInputs;
     } = {};
-    private _input: Inputs = {};
+
+    get id(): number {
+        return 0;
+    }
 
     get isBound(): boolean {
-        return this._context.update !== undefined;
+        return this._context.inputs !== undefined;
     }
 
     get label(): string {
-        return 'AI';
+        return this._context.LABEL !== undefined ? this._context.LABEL : 'Agent';
     }
 
-    loadAI(type: string, code?: string) {
-        this.remove();
-
-        if (code === undefined) {
-            code = type;
-            type = 'javascript';
-        }
-        
-        try {
-            (new Function('exports', 'sendInputs', code))(this._context, (state: any) => this._sendInput(state));
-        } catch(e) {
-            this.remove();
-        }
-    }
-
-    remove(): void {
-        this._context = {};
-        this._input = {};
-    }
-
-    sendState(state: any): void {
-        if (this._context.update !== undefined) {
-            try {
-                this._context.update(state);
-            } catch(e) {
-
+    loadAgent(options: {
+        type?: string;
+        code?: string;
+        url?: string;
+    }): Promise<void> {
+        return new Promise<void>((resolve) => {
+            function typeFromUrl(url: string): string {
+                return "javascript";
             }
+
+            const loadFromCode = (type: string, code: string) => {
+                const context = {};
+                (new Function('exports', code))(context);
+
+                this.unloadAgent();
+                this._context = context;
+
+                resolve();
+            };
+
+            if (options.url !== undefined) {
+                fetch(options.url).then(response => response.text()).then(code => loadFromCode(options.type !== undefined ? options.type : typeFromUrl(options.url!), code));
+            } else if (options.code !== undefined) {
+                loadFromCode(options.type !== undefined ? options.type : "javascript", options.code);
+            }
+        });
+    }
+
+    unloadAgent(): void {
+        this._context = {};
+    }
+
+    inputs(state: object): MoroboxAIGameSDK.IInputs {
+        if (this._context.inputs === undefined) {
+            return {}
         }
-    }
 
-    inputs(): Inputs {
-        return this._input;
-    }
-
-    private _sendInput(state: any): void {
-        this._input = state;
+        return this._context.inputs(state);
     }
 }
 
@@ -104,8 +86,8 @@ class Controller implements IController {
     // Controller for receiving player inputs if human controller
     private _inputController?: IInputController;
 
-    // Controller for user defined AI
-    private _aiController: AIController;
+    // Controller for when an agent is bound
+    private _agentController: AgentController;
 
     get id(): number {
         return this._id;
@@ -116,8 +98,8 @@ class Controller implements IController {
     }
 
     get label(): string {
-        if (this._aiController.isBound) {
-            return this._aiController.label;
+        if (this._agentController.isBound) {
+            return this._agentController.label;
         }
 
         if (this._inputController !== undefined) {
@@ -130,31 +112,31 @@ class Controller implements IController {
     constructor(id: number, inputController?: IInputController) {
         this._id = id;
         this._inputController = inputController;
-        this._aiController = new AIController();
+        this._agentController = new AgentController();
     }
 
-    sendState(state: any): void {
-        this._aiController.sendState(state);
-    }
-
-    inputs(): any {
-        if (this._aiController.isBound) {
-            return this._aiController.inputs();
+    inputs(state: object): MoroboxAIGameSDK.IInputs {
+        if (this._agentController.isBound) {
+            return this._agentController.inputs(state);
         }
 
         if (this._inputController !== undefined) {
-            return this._inputController.inputs();
+            return this._inputController.inputs;
         }
-        
+
         return {};
     }
 
-    loadAI(type: string, code?: string): void {
-        this._aiController.loadAI(type, code);
+    loadAgent(options: {
+        type?: string;
+        code?: string;
+        url?: string;
+    }): Promise<void> {
+        return this._agentController.loadAgent(options);
     }
 
-    unloadAI(): void {
-        this._aiController.remove();
+    unloadAgent(): void {
+        this._agentController.unloadAgent();
     }
 }
 
@@ -167,7 +149,12 @@ export class ControllerBus {
         return [...this._controllers.keys()];
     }
 
+    get controllers(): Map<number, IController> {
+        return this._controllers;
+    }
+
     constructor(options: {
+        player: MoroboxAIGameSDK.IPlayer,
         inputController: () => IInputController
     }) {
         this._controllers.set(0, new Controller(0, options.inputController()));
@@ -183,20 +170,10 @@ export class ControllerBus {
         return this._controllers.get(controllerId);
     }
 
-    /**
-     * Send game state to all or a single controller.
-     * @param {any} state - Game state
-     * @param {number} controllerId - Specific controller
-     */
-    sendState(state: any, controllerId?: number): void {
-        if (controllerId === undefined) {
-            this._controllers.forEach(_ => _.sendState(state));
-            return;
-        }
-
-        const controller = this._controllers.get(controllerId);
-        if (controller !== undefined) {
-            controller.sendState(state);
-        }
+    inputs(state: object): Array<MoroboxAIGameSDK.IInputs> {
+        return [
+            this._controllers.get(0)!.inputs(state),
+            this._controllers.get(1)!.inputs(state),
+        ];
     }
 }
