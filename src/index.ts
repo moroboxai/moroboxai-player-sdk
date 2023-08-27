@@ -8,7 +8,7 @@ export { IInputController, IController } from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.15';
+export const VERSION: string = '0.1.0-alpha.16';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -112,6 +112,9 @@ export interface IPlayer {
 
     // Reload the game
     reload(): void;
+
+    // Reset the game
+    reset(): void;
 
     /**
      * Get a controller by id.
@@ -222,6 +225,10 @@ class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
 
     ready() {
         this._player.ready();
+    }
+
+    reset() {
+        this._player.reset();
     }
 
     getController(controllerId: number): MoroboxAIGameSDK.IController | undefined {
@@ -756,6 +763,14 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
     reload(): void {
         this.stop();
         this.play();
+    }
+
+    reset(): void {
+        if (this._game !== undefined) {
+            this._game.reset();
+        }
+
+        this._controllerBus.reset();
     }
 
     remove(): void {

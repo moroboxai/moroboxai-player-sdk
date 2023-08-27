@@ -23,6 +23,8 @@ class AgentController implements IController {
         LABEL?: string;
         // Function exported from the code to compute the next input
         inputs?: (state: object) => MoroboxAIGameSDK.IInputs;
+        // Function exported from the code to reset the controller
+        reset?: () => void;
     } = {};
 
     get id(): number {
@@ -75,6 +77,12 @@ class AgentController implements IController {
         }
 
         return this._context.inputs(state);
+    }
+
+    reset() {
+        if (this._context.reset !== undefined) {
+            this._context.reset();
+        }
     }
 }
 
@@ -138,6 +146,10 @@ class Controller implements IController {
     unloadAgent(): void {
         this._agentController.unloadAgent();
     }
+
+    reset() {
+        this._agentController.reset();
+    }
 }
 
 // Aggregate multiple controllers
@@ -175,5 +187,10 @@ export class ControllerBus {
             this._controllers.get(0)!.inputs(state),
             this._controllers.get(1)!.inputs(state),
         ];
+    }
+
+    // Reset the controllers
+    reset() {
+        this._controllers.forEach(controller => controller.reset());
     }
 }
