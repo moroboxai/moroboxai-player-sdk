@@ -8,7 +8,7 @@ export { IInputController, IController } from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.14';
+export const VERSION: string = '0.1.0-alpha.15';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -273,6 +273,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             player: this,
             inputController: config.inputController
         });
+        this._tickFromGame = this._tickFromGame.bind(this);
 
         if (this._options.onReady !== undefined) {
             this._readyCallback = this._options.onReady;
