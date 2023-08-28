@@ -15,6 +15,8 @@ export interface IController extends MoroboxAIGameSDK.IController {
      * @returns {IInputs} Inputs
      */
     inputs(state: object): MoroboxAIGameSDK.IInputs;
+
+    reset(): void;
 }
 
 class AgentController implements IController {

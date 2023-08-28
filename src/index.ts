@@ -8,7 +8,7 @@ export { IInputController, IController } from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.16';
+export const VERSION: string = '0.1.0-alpha.17';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -112,9 +112,6 @@ export interface IPlayer {
 
     // Reload the game
     reload(): void;
-
-    // Reset the game
-    reset(): void;
 
     /**
      * Get a controller by id.
@@ -227,12 +224,22 @@ class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
         this._player.ready();
     }
 
-    reset() {
-        this._player.reset();
+    saveState(): object
+    {
+        return this._player.saveState();
+    }
+
+    loadState(state: object): void
+    {
+        this._player.loadState(state);
     }
 
     getController(controllerId: number): MoroboxAIGameSDK.IController | undefined {
         return this._player.getController(controllerId);
+    }
+
+    tick(delta: number): void {
+        this._player.tick(delta);
     }
 }
 
@@ -280,7 +287,6 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             player: this,
             inputController: config.inputController
         });
-        this._tickFromGame = this._tickFromGame.bind(this);
 
         if (this._options.onReady !== undefined) {
             this._readyCallback = this._options.onReady;
@@ -473,7 +479,6 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
                 console.log('boot loaded');
                 this._game = this._exports.boot(this._proxy);
-                this._game.ticker = this._tickFromGame;
                 console.log(this._game);
 
                 return resolve();
@@ -642,17 +647,6 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         return this._controllerBus.get(id);
     }
 
-    // Called by the game when ticked
-    private _tickFromGame(delta: number) {
-        if (this._game === undefined) {
-            return;
-        }
-
-        // Ask the agents the next inputs and tick the game
-        const state = this._game.getStateForAgent();
-        this._game.tick(this._controllerBus.inputs(state), delta);
-    }
-
     // IPlayer interface
     get width(): number {
         return this._ui.wrapper ? this._ui.wrapper.clientWidth : 0;
@@ -765,14 +759,6 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         this.play();
     }
 
-    reset(): void {
-        if (this._game !== undefined) {
-            this._game.reset();
-        }
-
-        this._controllerBus.reset();
-    }
-
     remove(): void {
         this.stop();
 
@@ -789,6 +775,28 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             this._ui.wrapper.remove();
             this._ui.wrapper = undefined;
         }
+    }
+
+    saveState(): object
+    {
+        return this._game !== undefined ? this._game.saveState() : {};
+    }
+
+    loadState(state: object): void
+    {
+        if (this._game !== undefined) {
+            this._game.loadState(state);
+        }
+    }
+
+    tick(delta: number): void {
+        if (this._game === undefined) {
+            return;
+        }
+
+        // Ask the agents the next inputs and tick the game
+        const state = this._game.getStateForAgent();
+        this._game.tick(this._controllerBus.inputs(state), delta);
     }
 
     getController(controllerId: number): MoroboxAIGameSDK.IController | undefined {
