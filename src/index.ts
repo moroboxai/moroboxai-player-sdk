@@ -8,7 +8,7 @@ export { IInputController, IController } from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.19';
+export const VERSION: string = '0.1.0-alpha.20';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -952,6 +952,7 @@ export class MetaPlayer implements IMetaPlayer {
     private _players: Array<IPlayer> = [];
 
     constructor(players?: Array<IPlayer>) {
+        this._tickFromGame = this._tickFromGame.bind(this);
         this._handleReady = this._handleReady.bind(this);
 
         if (players !== undefined) {
@@ -1071,6 +1072,10 @@ export class MetaPlayer implements IMetaPlayer {
         this._players.forEach(other => other.loadState(state));
     }
 
+    _tickFromGame(delta: number) {
+        this.tick(delta);
+    }
+
     tick(delta: number) {
         const state = this.saveState();
         this._players.forEach(other => {
@@ -1109,7 +1114,8 @@ export class MetaPlayer implements IMetaPlayer {
     addPlayer(other: IPlayer) {
         this._players.push(other);
 
-        other.simulated = this._players.length > 1;
+        other.ticker = this._players.length === 1 ? this._tickFromGame : undefined;
+        other.simulated = true;
         other.onReady = this._handleReady;
     }
 
