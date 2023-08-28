@@ -8,10 +8,11 @@ export { IInputController, IController } from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.17';
+export const VERSION: string = '0.1.0-alpha.18';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
+const PHYSICS_TIMESTEP = 0.01;
 
 export interface ISDKConfig {
     // Create a controller listening for player inputs
@@ -58,6 +59,8 @@ export interface IPlayerOptions {
     autoPlay?: boolean;
     // Desired game speed
     speed?: number;
+    // Simulated or not
+    simulated?: boolean;
     onReady?: () => void;
 }
 
@@ -78,6 +81,10 @@ export interface IPlayer {
     header: MoroboxAIGameSDK.GameHeader | undefined;
     // Get/Set weither to game should play automatically
     autoPlay: boolean;
+    // Simulated or not
+    simulated: boolean;
+    // Hook called by the player when ticked
+    ticker?: (delta: number) => void;
     // If the player is loading the game
     readonly isLoading: boolean;
     // If the game has been loaded and is playing
@@ -110,8 +117,15 @@ export interface IPlayer {
     // Stop the game
     stop(): void;
 
-    // Reload the game
-    reload(): void;
+    /**
+     * Save the state of the game.
+     */
+    saveState(): object;
+
+    /**
+     * Load the state of the game.
+     */
+    loadState(state: object): void;
 
     /**
      * Get a controller by id.
@@ -266,6 +280,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
     private _controllerBus: ControllerBus;
     private _resizeListener?: () => void;
     private _speed: number = 1;
+    private _physicsAccumulator: number = 0;
 
     get isLoading(): boolean {
         return this._state == EPlayerState.Loading;
@@ -287,6 +302,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             player: this,
             inputController: config.inputController
         });
+        this._tickFromGame = this._tickFromGame.bind(this);
 
         if (this._options.onReady !== undefined) {
             this._readyCallback = this._options.onReady;
@@ -479,6 +495,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
                 console.log('boot loaded');
                 this._game = this._exports.boot(this._proxy);
+                this._game.ticker = this._tickFromGame;
                 console.log(this._game);
 
                 return resolve();
@@ -704,6 +721,16 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         this._options.autoPlay = value;
     }
 
+    get simulated(): boolean {
+        return this._options.simulated === true;
+    }
+
+    set simulated(value: boolean) {
+        this._options.simulated = value;
+    }
+
+    ticker?: (detla: number) => void;
+
     play(): void;
     play(url: string): void;
     play(options: { url?: string, header?: MoroboxAIGameSDK.GameHeader, autoPlay?: boolean }): void;
@@ -779,13 +806,32 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
     saveState(): object
     {
-        return this._game !== undefined ? this._game.saveState() : {};
+        return {
+            physicsAccumulator: this._physicsAccumulator,
+            game: this._game !== undefined ? this._game.saveState() : {},
+            controllers: this._controllerBus.saveState()
+        };
     }
 
-    loadState(state: object): void
+    loadState(state: any): void
     {
+        this._physicsAccumulator = state.physicsAccumulator !== undefined ? state.physicsAccumulator : 0;
         if (this._game !== undefined) {
-            this._game.loadState(state);
+            this._game.loadState(state.game !== undefined ? state.game : {});
+        }
+        this._controllerBus.loadState(state.controllers !== undefined ? state.controllers : [{}, {}]);
+    }
+
+    _tickFromGame(delta: number): void {
+        // Hook registered
+        if (this.ticker !== undefined) {
+            this.ticker(delta);
+            return;
+        }
+
+        // In simulated mode, the player doesn't run by itself
+        if (!this.simulated) {
+            this.tick(delta);
         }
     }
 
@@ -794,9 +840,19 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             return;
         }
 
+        this._physicsAccumulator += delta * this.speed;
+        while (this._physicsAccumulator > PHYSICS_TIMESTEP) {
+            this._tickOneFrame(PHYSICS_TIMESTEP);
+            this._physicsAccumulator -= PHYSICS_TIMESTEP;
+        }
+
+        this._tickOneFrame(PHYSICS_TIMESTEP);
+    }
+
+    _tickOneFrame(delta: number): void {
         // Ask the agents the next inputs and tick the game
-        const state = this._game.getStateForAgent();
-        this._game.tick(this._controllerBus.inputs(state), delta);
+        const state = this._game!.getStateForAgent();
+        this._game!.tick(this._controllerBus.inputs(state), delta);
     }
 
     getController(controllerId: number): MoroboxAIGameSDK.IController | undefined {

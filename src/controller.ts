@@ -16,7 +16,9 @@ export interface IController extends MoroboxAIGameSDK.IController {
      */
     inputs(state: object): MoroboxAIGameSDK.IInputs;
 
-    reset(): void;
+    saveState(): object;
+
+    loadState(state: object): void;
 }
 
 class AgentController implements IController {
@@ -25,8 +27,9 @@ class AgentController implements IController {
         LABEL?: string;
         // Function exported from the code to compute the next input
         inputs?: (state: object) => MoroboxAIGameSDK.IInputs;
-        // Function exported from the code to reset the controller
-        reset?: () => void;
+        // Save/Load the state of the agent
+        saveState?: () => object;
+        loadState?: (state: object) => void;
     } = {};
 
     get id(): number {
@@ -81,9 +84,17 @@ class AgentController implements IController {
         return this._context.inputs(state);
     }
 
-    reset() {
-        if (this._context.reset !== undefined) {
-            this._context.reset();
+    saveState(): object {
+        if (this._context.saveState !== undefined) {
+            return this._context.saveState();
+        }
+
+        return {};
+    }
+
+    loadState(state: object) {
+        if (this._context.loadState !== undefined) {
+            this._context.loadState(state);
         }
     }
 }
@@ -149,8 +160,12 @@ class Controller implements IController {
         this._agentController.unloadAgent();
     }
 
-    reset() {
-        this._agentController.reset();
+    saveState(): object {
+        return this._agentController.saveState();
+    }
+
+    loadState(state: object) {
+        this._agentController.loadState(state);
     }
 }
 
@@ -191,8 +206,15 @@ export class ControllerBus {
         ];
     }
 
-    // Reset the controllers
-    reset() {
-        this._controllers.forEach(controller => controller.reset());
+    saveState(): Array<object> {
+        return [
+            this._controllers.get(0)!.saveState(),
+            this._controllers.get(1)!.saveState(),
+        ];
+    }
+
+    loadState(state: Array<object>) {
+        this._controllers.get(0)!.loadState(state);
+        this._controllers.get(1)!.loadState(state);
     }
 }
