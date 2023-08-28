@@ -8,7 +8,7 @@ export { IInputController, IController } from './controller';
 /**
  * Version of the SDK.
  */
-export const VERSION: string = '0.1.0-alpha.18';
+export const VERSION: string = '0.1.0-alpha.19';
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -128,6 +128,12 @@ export interface IPlayer {
     loadState(state: object): void;
 
     /**
+     * Tick the player.
+     * @param {number} delta - elapsed time
+     */
+    tick(delta: number): void;
+
+    /**
      * Get a controller by id.
      * @param {number} controllerId - Controller id
      * @returns {MoroboxAIGameSDK.IController} Controller
@@ -143,6 +149,14 @@ export interface IPlayer {
 
     // Called by the game when ready
     ready(): void;
+}
+
+export interface IMetaPlayer extends IPlayer {
+    // Add a player to the list
+    addPlayer(other: IPlayer): void;
+
+    // Remove a player from the list
+    removePlayer(other: IPlayer): void;
 }
 
 // Internal player state
@@ -932,4 +946,181 @@ export function init(config: ISDKConfig, element?: IPlayerOptions | Element | El
     }
 
     return Array.prototype.map.call(_elements, _ => createPlayer(config, _, _options)) as IPlayer[];
+}
+
+export class MetaPlayer implements IMetaPlayer {
+    private _players: Array<IPlayer> = [];
+
+    constructor(players?: Array<IPlayer>) {
+        this._handleReady = this._handleReady.bind(this);
+
+        if (players !== undefined) {
+            players.forEach(other => this.addPlayer(other));
+        }
+    }
+
+    get masterPlayer(): IPlayer|undefined {
+        return this._players !== undefined ? this._players[0] : undefined;
+    }
+
+    get speed(): number {
+        return this.masterPlayer!.speed;
+    }
+    
+    set speed(val: number) {
+        this._players.forEach(other => other.speed = val);
+    }
+    
+    get width(): number {
+        return this.masterPlayer!.width;
+    }
+    
+    set width(val: number) {
+        this._players.forEach(other => other.width = val);
+    }
+    
+    get height(): number {
+        return this.masterPlayer!.height;
+    }
+    
+    set height(val: number) {
+        this._players.forEach(other => other.height = val);
+    }
+    
+    get resizable(): boolean {
+        return this.masterPlayer!.resizable;
+    }
+    
+    set resizable(val: boolean) {
+        this._players.forEach(other => other.resizable = val);
+    }
+    
+    get url(): string | undefined {
+        return this.masterPlayer!.url;
+    }
+
+    set url(val: string | undefined) {
+        this._players.forEach(other => other.url = val);
+    }
+    
+    get header(): MoroboxAIGameSDK.GameHeader | undefined {
+        return this.masterPlayer!.header;
+    }
+
+    set header(val: MoroboxAIGameSDK.GameHeader | undefined) {
+        this._players.forEach(other => other.header = val);
+    }
+    
+    get autoPlay(): boolean {
+        return this.masterPlayer!.autoPlay;
+    }
+
+    set autoPlay(val: boolean) {
+        this._players.forEach(other => other.autoPlay = val);
+    }
+    
+    get simulated(): boolean {
+        return false;
+    }
+
+    set simulated(val: boolean) {
+    }
+    
+    ticker?: ((delta: number) => void) | undefined;
+
+    get isLoading(): boolean {
+        return this.masterPlayer!.isLoading;
+    }
+
+    get isPlaying(): boolean {
+        return this.masterPlayer!.isPlaying;
+    }
+
+    get isPaused(): boolean {
+        return this.masterPlayer!.isPaused;
+    }
+
+    play(options?: string | { url?: string, header?: MoroboxAIGameSDK.GameHeader, autoPlay?: boolean }): void {
+        var _options: { url?: string, header?: MoroboxAIGameSDK.GameHeader, autoPlay?: boolean } = {url: undefined, header: undefined, autoPlay: true};
+        if (options === undefined) {
+        } else if (typeof options === "string") {
+            _options.url = options;
+        } else {
+            _options.url = options.url;
+            _options.header = options.header;
+        }
+        
+        this._players.forEach(other => other.play(_options));
+    }
+
+    onReady?: (() => void) | undefined;
+
+    pause() {
+        this._players.forEach(other => other.pause());
+    }
+
+    stop() {
+        this._players.forEach(other => other.stop());
+    }
+
+    saveState(): object {
+        return this.masterPlayer!.saveState();
+    }
+
+    loadState(state: object) {
+        this._players.forEach(other => other.loadState(state));
+    }
+
+    tick(delta: number) {
+        const state = this.saveState();
+        this._players.forEach(other => {
+            other.loadState(state);
+            other.tick(delta);
+        });
+    }
+
+    getController(controllerId: number): MoroboxAIGameSDK.IController | undefined {
+        return undefined;
+    }
+
+    remove(): void {
+    }
+
+    resize(width: { width?: number, height?: number } | number, height?: number): void {
+        if (typeof width === "object") {
+            this._players.forEach(other => other.resize(width));
+        } else if (height !== undefined) {
+            this._players.forEach(other => other.resize(width, height));
+        }
+    }
+
+    _handleReady() {
+        if (this._players.every(other => other.isPlaying)) {
+            this.ready();
+        }
+    }
+
+    ready() {
+        if (this.onReady !== undefined) {
+            this.onReady();
+        }
+    }
+    
+    addPlayer(other: IPlayer) {
+        this._players.push(other);
+
+        other.simulated = this._players.length > 1;
+        other.onReady = this._handleReady;
+    }
+
+    removePlayer(other: IPlayer) {
+        const index = this._players.indexOf(other);
+        if (index < 0) {
+            return;
+        }
+
+        delete this._players[index];
+        other.ticker = undefined;
+        other.simulated = false;
+    }
 }
