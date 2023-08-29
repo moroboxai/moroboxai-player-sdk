@@ -56,7 +56,22 @@ class AgentController implements IController {
 
             const loadFromCode = (type: string, code: string) => {
                 const context = {};
-                (new Function('exports', code))(context);
+                (new Function('exports', `${code} 
+                if (typeof LABEL !== "undefined") {
+                    exports.LABEL = LABEL;
+                }
+                
+                if (typeof saveState !== "undefined") {
+                    exports.saveState = saveState;
+                }
+                
+                if (typeof loadState !== "undefined") {
+                    exports.loadState = loadState;
+                }
+                
+                if (typeof inputs !== "undefined") {
+                    exports.inputs = inputs;
+                }`))(context);
 
                 this.unloadAgent();
                 this._context = context;
