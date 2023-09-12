@@ -1,4 +1,4 @@
-import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
+import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
 
 /**
  * Interface for the keyboard or gamepad.
@@ -41,7 +41,9 @@ class AgentController implements IController {
     }
 
     get label(): string {
-        return this._context.LABEL !== undefined ? this._context.LABEL : 'Agent';
+        return this._context.LABEL !== undefined
+            ? this._context.LABEL
+            : "Agent";
     }
 
     loadAgent(options: {
@@ -56,7 +58,9 @@ class AgentController implements IController {
 
             const loadFromCode = (type: string, code: string) => {
                 const context = {};
-                (new Function('exports', `${code} 
+                new Function(
+                    "exports",
+                    `${code} 
                 if (typeof LABEL !== "undefined") {
                     exports.LABEL = LABEL;
                 }
@@ -71,7 +75,8 @@ class AgentController implements IController {
                 
                 if (typeof inputs !== "undefined") {
                     exports.inputs = inputs;
-                }`))(context);
+                }`
+                )(context);
 
                 this.unloadAgent();
                 this._context = context;
@@ -80,9 +85,21 @@ class AgentController implements IController {
             };
 
             if (options.url !== undefined) {
-                fetch(options.url).then(response => response.text()).then(code => loadFromCode(options.type !== undefined ? options.type : typeFromUrl(options.url!), code));
+                fetch(options.url)
+                    .then((response) => response.text())
+                    .then((code) =>
+                        loadFromCode(
+                            options.type !== undefined
+                                ? options.type
+                                : typeFromUrl(options.url!),
+                            code
+                        )
+                    );
             } else if (options.code !== undefined) {
-                loadFromCode(options.type !== undefined ? options.type : "javascript", options.code);
+                loadFromCode(
+                    options.type !== undefined ? options.type : "javascript",
+                    options.code
+                );
             }
         });
     }
@@ -93,7 +110,7 @@ class AgentController implements IController {
 
     inputs(state: object): MoroboxAIGameSDK.IInputs {
         if (this._context.inputs === undefined) {
-            return {}
+            return {};
         }
 
         return this._context.inputs(state);
@@ -139,10 +156,10 @@ class Controller implements IController {
         }
 
         if (this._inputController !== undefined) {
-            return 'human';
+            return "human";
         }
 
-        return '<>';
+        return "<>";
     }
 
     constructor(id: number, inputController?: IInputController) {
@@ -198,8 +215,8 @@ export class ControllerBus {
     }
 
     constructor(options: {
-        player: MoroboxAIGameSDK.IPlayer,
-        inputController: () => IInputController
+        player: MoroboxAIGameSDK.IPlayer;
+        inputController: () => IInputController;
     }) {
         this._controllers.set(0, new Controller(0, options.inputController()));
         this._controllers.set(1, new Controller(1));
@@ -217,14 +234,14 @@ export class ControllerBus {
     inputs(state: object): Array<MoroboxAIGameSDK.IInputs> {
         return [
             this._controllers.get(0)!.inputs(state),
-            this._controllers.get(1)!.inputs(state),
+            this._controllers.get(1)!.inputs(state)
         ];
     }
 
     saveState(): Array<object> {
         return [
             this._controllers.get(0)!.saveState(),
-            this._controllers.get(1)!.saveState(),
+            this._controllers.get(1)!.saveState()
         ];
     }
 
