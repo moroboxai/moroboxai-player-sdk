@@ -1,0 +1,58 @@
+<html>
+    <head>
+        <title>MoroboxAIPlayerSDK Sample</title>
+        <link rel="stylesheet" href="index.css" />
+        <!-- For running the sample game -->
+        <script
+            type="text/javascript"
+            src="https://cdn.jsdelivr.net/npm/piximoroxel8ai@latest/lib/umd/piximoroxel8ai.js"
+        ></script>
+    </head>
+
+    <body class="vertical">
+        <div class="horizontal">
+            <div id="player"></div>
+        </div>
+        <div id="info">
+            <div>
+                moroboxai-game-sdk v<span
+                    id="moroboxai-game-sdk-version"
+                ></span>
+            </div>
+            <div>
+                moroboxai-player-sdk v<span
+                    id="moroboxai-player-sdk-version"
+                ></span>
+            </div>
+        </div>
+    </body>
+    <script type="module">
+        import * as MoroboxAIPlayerSDK from "./src/index.ts";
+        import { FetchFileServer } from "./src/server.ts";
+
+        document.getElementById("moroboxai-game-sdk-version").innerText =
+            MoroboxAIPlayerSDK.GAME_SDK_VERSION;
+        document.getElementById("moroboxai-player-sdk-version").innerText =
+            MoroboxAIPlayerSDK.VERSION;
+
+        const player = MoroboxAIPlayerSDK.init(
+            // Gutter for making the player work
+            {
+                inputController: () => {},
+                fileServer: (baseUrl) => new FetchFileServer(baseUrl),
+                zipServer: (zipUrl) => {}
+            },
+            // Root element of the player
+            document.getElementById("player"),
+            // Options for the player
+            {
+                url: "https://raw.githubusercontent.com/moroboxai/moroboxai-games/master/piximoroxel8ai-sample/sample/header.yml",
+                resizable: false,
+                autoPlay: true,
+                width: 256,
+                height: 256,
+                onReady: () => console.log("ready")
+            }
+        );
+    </script>
+</html>

@@ -1,9 +1,10 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
-import { ControllerBus, IInputController, IController } from "./controller";
+import { ControllerBus } from "./controller";
+import type { IInputController, IController } from "./controller";
 import { Overlay } from "./overlay";
 import { GameServer } from "./server";
 
-export { IInputController, IController } from "./controller";
+export type { IInputController, IController } from "./controller";
 
 /**
  * Version of the game SDK.
@@ -13,7 +14,7 @@ export { VERSION as GAME_SDK_VERSION } from "moroboxai-game-sdk";
 /**
  * Version of the SDK.
  */
-export const VERSION: string = "0.1.0-alpha.22";
+export const VERSION: string = "0.1.0-alpha.23";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;

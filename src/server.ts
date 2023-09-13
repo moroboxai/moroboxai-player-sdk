@@ -4,6 +4,55 @@ import YAML from "yaml";
 // Name of the header file
 const HEADER_FILE = "header.yml";
 
+/**
+ * Fetch data from an URL.
+ * @param {string} url - Remote URL
+ * @returns {Promise} Data when ready
+ */
+export function getUrl(url: string): Promise<string> {
+    return fetch(url)
+        .then((response) => {
+            if (!response.ok) {
+                return Promise.reject(response.status);
+            }
+
+            return response.blob();
+        })
+        .then((blob) => {
+            return blob.text();
+        });
+}
+
+// Serve files from remote URL
+export class FetchFileServer implements MoroboxAIGameSDK.IFileServer {
+    // Base URL of the files
+    baseUrl: string;
+
+    constructor(baseUrl: string) {
+        this.baseUrl = baseUrl;
+    }
+
+    href(path: string): string {
+        return `${this.baseUrl}/${path}`;
+    }
+
+    get(path: string): Promise<string> {
+        return getUrl(this.href(path));
+    }
+
+    ready(callback: () => void): void {
+        if (callback) {
+            callback();
+        }
+    }
+
+    close(callback?: (err: any) => void): void {
+        if (callback) {
+            callback(null);
+        }
+    }
+}
+
 export class GameServer implements MoroboxAIGameSDK.IGameServer {
     private _server: MoroboxAIGameSDK.IFileServer;
 

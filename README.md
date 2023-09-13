@@ -9,9 +9,10 @@
 This package provides the core functionalities for running [MoroboxAI](https://github.com/moroboxai) games on various platforms, but lacks the gutter that is required for some platform-specific functionalities.
 
 See:
-  * [moroboxai](https://github.com/moroboxai/moroboxai): for running games on the desktop with [Electron](https://www.electronjs.org/)
-  * [moroboxai-player-web](https://github.com/moroboxai/moroboxai-player-web): for embedding games on the web
-  * [moroboxai-player-react](https://github.com/moroboxai/moroboxai-player-react): for embedding games in [React](https://en.reactjs.org/) apps
+
+-   [moroboxai](https://github.com/moroboxai/moroboxai): for running games on the desktop with [Electron](https://www.electronjs.org/)
+-   [moroboxai-player-web](https://github.com/moroboxai/moroboxai-player-web): for embedding games on the web
+-   [moroboxai-player-react](https://github.com/moroboxai/moroboxai-player-react): for embedding games in [React](https://en.reactjs.org/) apps
 
 ## Install
 
@@ -42,9 +43,19 @@ const element: Element = ...;
 // The generic options for the player
 const options: MoroboxAIPlayerSDK.IPlayerOptions = ...;
 
-// Entrypoint of moroboxai-player-sdk with out gutter
+// Entrypoint of moroboxai-player-sdk with our gutter
 MoroboxAIPlayerSDK.init(sdkConfig, element, options);
 ```
+
+## Sample
+
+This package contains a sample that can be run with:
+
+```bash
+npm run dev
+```
+
+Then head to localhost:3000.
 
 ## License
 

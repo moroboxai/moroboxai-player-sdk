@@ -1,12 +1,13 @@
 {
     "compilerOptions": {
+        "module": "ES6",
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
         "target": "es6",
         "noImplicitAny": true,
         "moduleResolution": "node",
         "sourceMap": true,
-        "outDir": "lib",
+        "outDir": "lib/es",
         "baseUrl": ".",
         "declaration": true,
         "strict": true,
