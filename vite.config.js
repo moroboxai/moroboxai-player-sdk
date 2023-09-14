@@ -16,6 +16,12 @@ export default defineConfig({
                         return `umd/moroboxai-player-sdk.min.js`;
                 }
             }
+        },
+        rollupOptions: {
+            input: {
+                main: "./index.html"
+            }
         }
-    }
+    },
+    base: "/moroboxai-player-sdk/"
 });

@@ -1,7 +1,6 @@
 <html>
     <head>
         <title>MoroboxAIPlayerSDK Sample</title>
-        <link rel="stylesheet" href="index.css" />
         <!-- For running the sample game -->
         <script
             type="text/javascript"
@@ -55,4 +54,38 @@
             }
         );
     </script>
+
+    <style>
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .horizontal {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #player {
+            background-color: black;
+            background-size: cover;
+            width: 256px;
+            height: 256px;
+        }
+
+        #info {
+            margin-top: 2em;
+            text-align: center;
+        }
+    </style>
 </html>

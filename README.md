@@ -47,16 +47,6 @@ const options: MoroboxAIPlayerSDK.IPlayerOptions = ...;
 MoroboxAIPlayerSDK.init(sdkConfig, element, options);
 ```
 
-## Sample
-
-This package contains a sample that can be run with:
-
-```bash
-npm run dev
-```
-
-Then head to localhost:3000.
-
 ## License
 
 This content is released under the [MIT](http://opensource.org/licenses/MIT) License.
