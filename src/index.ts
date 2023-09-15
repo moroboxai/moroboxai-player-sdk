@@ -1,10 +1,20 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
 import { ControllerBus } from "./controller";
-import type { IInputController, IController } from "./controller";
+import type {
+    IAgentOptions,
+    IInputController,
+    IController
+} from "./controller";
 import { Overlay } from "./overlay";
 import { GameServer } from "./server";
 
-export type { IInputController, IController } from "./controller";
+export type {
+    SupportedAgentLanguage,
+    IAgentOptions,
+    IAgent,
+    IInputController,
+    IController
+} from "./controller";
 
 /**
  * Version of the game SDK.
@@ -14,7 +24,7 @@ export { VERSION as GAME_SDK_VERSION } from "moroboxai-game-sdk";
 /**
  * Version of the SDK.
  */
-export const VERSION: string = "0.1.0-alpha.23";
+export const VERSION: string = "0.1.0-alpha.24";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -70,6 +80,8 @@ export interface IPlayerOptions {
     speed?: number;
     // Simulated or not
     simulated?: boolean;
+    // List of agents
+    agents?: Array<IAgentOptions>;
     onReady?: () => void;
 }
 
@@ -157,9 +169,6 @@ export interface IPlayer {
     // Resize the player
     resize(options: { width?: number; height?: number }): void;
     resize(width: number, height: number): void;
-
-    // Called by the game when ready
-    ready(): void;
 }
 
 export interface IMetaPlayer extends IPlayer {
@@ -214,39 +223,13 @@ class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
         return this._player.resizable;
     }
 
-    set resizable(value: boolean) {
-        this._player.resizable = value;
-    }
-
     get speed(): number {
         return this._player.speed;
-    }
-
-    set speed(value: number) {
-        this._player.speed = value;
-    }
-
-    get url(): string | undefined {
-        return this._player.url;
-    }
-
-    set url(value: string | undefined) {
-        this._player.url = value;
     }
 
     get header(): MoroboxAIGameSDK.GameHeader | undefined {
         return this._player.header;
     }
-
-    set header(value: MoroboxAIGameSDK.GameHeader | undefined) {
-        this._player.header = value;
-    }
-
-    get autoPlay(): boolean {
-        return false;
-    }
-
-    set autoPlay(value: boolean) {}
 
     resize(
         width: { width?: number; height?: number } | number,
@@ -261,26 +244,10 @@ class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
         }
     }
 
-    ready() {
-        this._player.ready();
-    }
-
-    saveState(): object {
-        return this._player.saveState();
-    }
-
-    loadState(state: object): void {
-        this._player.loadState(state);
-    }
-
     getController(
         controllerId: number
     ): MoroboxAIGameSDK.IController | undefined {
         return this._player.getController(controllerId);
-    }
-
-    tick(delta: number): void {
-        this._player.tick(delta);
     }
 }
 
@@ -301,7 +268,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
     private _startLoadingDate?: Date;
     private _gameServer?: MoroboxAIGameSDK.IGameServer;
     private _exports: {
-        boot?: (player: MoroboxAIGameSDK.IPlayer) => MoroboxAIGameSDK.IGame;
+        boot?: MoroboxAIGameSDK.IBoot;
     } = {};
     private _game?: MoroboxAIGameSDK.IGame;
     private _controllerBus: ControllerBus;
@@ -538,11 +505,13 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
                 }
 
                 console.log("boot loaded");
-                this._game = this._exports.boot(this._proxy);
-                this._game.ticker = this._tickFromGame;
-                console.log(this._game);
+                this._exports.boot(this._proxy).then((game) => {
+                    this._game = game;
+                    this._game.ticker = this._tickFromGame;
+                    console.log(this._game);
 
-                return resolve();
+                    return resolve();
+                });
             });
         });
     }

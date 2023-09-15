@@ -1,5 +1,37 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
 
+// Supported languages for agents
+export type SupportedAgentLanguage = "javascript" | "lua";
+
+/**
+ * Interface for loaded agents.
+ */
+export interface IAgent {
+    // Language of the code
+    lang: SupportedAgentLanguage;
+    // URL of the agent
+    url?: string;
+    // Code of the agent
+    code: string;
+}
+
+/**
+ * Information for loading agents.
+ */
+export interface IAgentOptions {
+    // Language of the code
+    lang?: SupportedAgentLanguage;
+    // URL where to find the code
+    url: string;
+}
+
+export interface IAgentOptions {
+    // Language of the code
+    lang?: SupportedAgentLanguage;
+    // Direct code of the agent
+    code: string;
+}
+
 /**
  * Interface for the keyboard or gamepad.
  */
@@ -9,6 +41,9 @@ export interface IInputController {
 }
 
 export interface IController extends MoroboxAIGameSDK.IController {
+    // Loaded agent
+    readonly agent?: IAgent;
+
     /**
      * Get inputs base on game state.
      * @param {object} state - game state
@@ -22,6 +57,10 @@ export interface IController extends MoroboxAIGameSDK.IController {
 }
 
 class AgentController implements IController {
+    // Loaded agent
+    private _agent?: IAgent;
+
+    // Functions exported by the agent
     private _context: {
         // Label to display for this agent
         LABEL?: string;
@@ -36,27 +75,39 @@ class AgentController implements IController {
         return 0;
     }
 
-    get isBound(): boolean {
-        return this._context.inputs !== undefined;
-    }
-
     get label(): string {
         return this._context.LABEL !== undefined
             ? this._context.LABEL
             : "Agent";
     }
 
-    loadAgent(options: {
-        type?: string;
-        code?: string;
-        url?: string;
-    }): Promise<void> {
+    get isBound(): boolean {
+        return this._context.inputs !== undefined;
+    }
+
+    get isAgent(): boolean {
+        return true;
+    }
+
+    get isPlayer(): boolean {
+        return false;
+    }
+
+    get agent(): IAgent | undefined {
+        return this._agent;
+    }
+
+    loadAgent(options: IAgentOptions): Promise<void> {
         return new Promise<void>((resolve) => {
-            function typeFromUrl(url: string): string {
+            function typeFromUrl(url: string): SupportedAgentLanguage {
                 return "javascript";
             }
 
-            const loadFromCode = (type: string, code: string) => {
+            const loadFromCode = (
+                lang: SupportedAgentLanguage,
+                url: string | undefined,
+                code: string
+            ) => {
                 const context = {};
                 new Function(
                     "exports",
@@ -78,6 +129,11 @@ class AgentController implements IController {
                 }`
                 )(context);
 
+                this._agent = {
+                    lang,
+                    url,
+                    code
+                };
                 this.unloadAgent();
                 this._context = context;
 
@@ -89,15 +145,17 @@ class AgentController implements IController {
                     .then((response) => response.text())
                     .then((code) =>
                         loadFromCode(
-                            options.type !== undefined
-                                ? options.type
+                            options.lang !== undefined
+                                ? options.lang
                                 : typeFromUrl(options.url!),
+                            options.url,
                             code
                         )
                     );
             } else if (options.code !== undefined) {
                 loadFromCode(
-                    options.type !== undefined ? options.type : "javascript",
+                    options.lang !== undefined ? options.lang : "javascript",
+                    undefined,
                     options.code
                 );
             }
@@ -146,10 +204,6 @@ class Controller implements IController {
         return this._id;
     }
 
-    get isBound(): boolean {
-        return false;
-    }
-
     get label(): string {
         if (this._agentController.isBound) {
             return this._agentController.label;
@@ -160,6 +214,22 @@ class Controller implements IController {
         }
 
         return "<>";
+    }
+
+    get isBound(): boolean {
+        return this._inputController !== undefined;
+    }
+
+    get isAgent(): boolean {
+        return this._agentController.isBound;
+    }
+
+    get isPlayer(): boolean {
+        return this.isBound && !this.isAgent;
+    }
+
+    get agent(): IAgent | undefined {
+        return this._agentController.agent;
     }
 
     constructor(id: number, inputController?: IInputController) {
@@ -180,11 +250,7 @@ class Controller implements IController {
         return {};
     }
 
-    loadAgent(options: {
-        type?: string;
-        code?: string;
-        url?: string;
-    }): Promise<void> {
+    loadAgent(options: IAgentOptions): Promise<void> {
         return this._agentController.loadAgent(options);
     }
 
