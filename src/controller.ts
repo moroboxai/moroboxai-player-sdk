@@ -8,7 +8,7 @@ export type SupportedAgentLanguage = "javascript" | "lua";
  */
 export interface IAgent {
     // Language of the code
-    lang: SupportedAgentLanguage;
+    language: SupportedAgentLanguage;
     // URL of the agent
     url?: string;
     // Code of the agent
@@ -18,19 +18,21 @@ export interface IAgent {
 /**
  * Information for loading agents.
  */
-export interface IAgentOptions {
+export type IAgentOptions = {
     // Language of the code
-    lang?: SupportedAgentLanguage;
-    // URL where to find the code
-    url: string;
-}
-
-export interface IAgentOptions {
-    // Language of the code
-    lang?: SupportedAgentLanguage;
-    // Direct code of the agent
-    code: string;
-}
+    language?: SupportedAgentLanguage;
+} & (
+    | {
+          // URL where to find the code
+          url: string;
+          code?: never;
+      }
+    | {
+          url?: never;
+          // Direct code of the agent
+          code: string;
+      }
+);
 
 /**
  * Interface for the keyboard or gamepad.
@@ -115,7 +117,7 @@ class AgentController implements IController {
             }
 
             const loadFromCode = (
-                lang: SupportedAgentLanguage,
+                language: SupportedAgentLanguage,
                 url: string | undefined,
                 code: string
             ) => {
@@ -141,7 +143,7 @@ class AgentController implements IController {
                 )(context);
 
                 this._agent = {
-                    lang,
+                    language,
                     url,
                     code
                 };
@@ -156,8 +158,8 @@ class AgentController implements IController {
                     .then((response) => response.text())
                     .then((code) =>
                         loadFromCode(
-                            options.lang !== undefined
-                                ? options.lang
+                            options.language !== undefined
+                                ? options.language
                                 : typeFromUrl(options.url!),
                             options.url,
                             code
@@ -165,7 +167,9 @@ class AgentController implements IController {
                     );
             } else if (options.code !== undefined) {
                 loadFromCode(
-                    options.lang !== undefined ? options.lang : "javascript",
+                    options.language !== undefined
+                        ? options.language
+                        : "javascript",
                     undefined,
                     options.code
                 );
