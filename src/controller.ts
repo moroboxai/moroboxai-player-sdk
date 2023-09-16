@@ -54,6 +54,17 @@ export interface IController extends MoroboxAIGameSDK.IController {
     saveState(): object;
 
     loadState(state: object): void;
+
+    /**
+     * Load an agent to this controller.
+     * @param {IAgentOptions} options - options for loading
+     */
+    loadAgent(options: IAgentOptions): Promise<void>;
+
+    /**
+     * Unload the agent.
+     */
+    unloadAgent(): void;
 }
 
 class AgentController implements IController {
