@@ -1,4 +1,6 @@
 index.html
+.prettierrc
+codecov.yml
 
 .DS_Store
 npm-debug.log
