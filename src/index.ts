@@ -24,7 +24,7 @@ export { VERSION as GAME_SDK_VERSION } from "moroboxai-game-sdk";
 /**
  * Version of the SDK.
  */
-export const VERSION: string = "0.1.0-alpha.28";
+export const VERSION: string = "0.1.0-alpha.29";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -157,11 +157,9 @@ export interface IPlayer {
     /**
      * Get a controller by id.
      * @param {number} controllerId - Controller id
-     * @returns {MoroboxAIGameSDK.IController} Controller
+     * @returns {IController} Controller
      */
-    getController(
-        controllerId: number
-    ): MoroboxAIGameSDK.IController | undefined;
+    getController(controllerId: number): IController | undefined;
 
     // Remove the player from document
     remove(): void;
@@ -903,9 +901,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         this._game!.tick(this._controllerBus.inputs(state), delta);
     }
 
-    getController(
-        controllerId: number
-    ): MoroboxAIGameSDK.IController | undefined {
+    getController(controllerId: number): IController | undefined {
         return this._controllerBus.get(controllerId);
     }
 }
@@ -1164,9 +1160,7 @@ export class MetaPlayer implements IMetaPlayer {
         });
     }
 
-    getController(
-        controllerId: number
-    ): MoroboxAIGameSDK.IController | undefined {
+    getController(controllerId: number): IController | undefined {
         return undefined;
     }
 
