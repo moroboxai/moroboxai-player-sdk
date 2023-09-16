@@ -24,7 +24,7 @@ export { VERSION as GAME_SDK_VERSION } from "moroboxai-game-sdk";
 /**
  * Version of the SDK.
  */
-export const VERSION: string = "0.1.0-alpha.25";
+export const VERSION: string = "0.1.0-alpha.26";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
