@@ -25,7 +25,7 @@ export { VERSION as GAME_SDK_VERSION } from "moroboxai-game-sdk";
 /**
  * Version of the SDK.
  */
-export const VERSION: string = "0.1.0-alpha.33";
+export const VERSION: string = "0.1.0-alpha.34";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -594,11 +594,11 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
         this._playTask = this._initGame()
             .then(() => {
-                this.ready();
+                this._ready();
             })
             .catch((reason) => {
                 console.error(reason);
-                this.ready();
+                this._ready();
             });
     }
 
@@ -675,12 +675,42 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         }
     }
 
-    private _ready() {
+    // Called when the game is loaded and ready to play
+    private _ready(): void {
+        if (this._state != EPlayerState.Loading) {
+            return;
+        }
+
+        this._state = EPlayerState.BecomePlaying;
+
+        const timeRemaining =
+            FORCE_LOADING_TIME - (+new Date() - +this._startLoadingDate!);
+        if (timeRemaining > 0) {
+            setTimeout(() => this._ready_after_loading(), timeRemaining);
+            return;
+        }
+
+        this._ready_after_loading();
+    }
+
+    private _ready_after_loading() {
         if (this._state !== EPlayerState.BecomePlaying) {
             return;
         }
 
         this._state = EPlayerState.Playing;
+
+        // Resize the player
+        if (this._game !== undefined) {
+            if (this._options.scale !== undefined) {
+                this.scale = this._options.scale;
+            } else {
+                this.resize({
+                    width: this._game?.width,
+                    height: this._game?.height,
+                })
+            }
+        }
 
         if (this._ui.overlay) {
             this._ui.overlay.playing();
@@ -691,24 +721,6 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         }
 
         this._notifyReady();
-    }
-
-    // Called by the game when it's loaded and ready to play
-    ready(): void {
-        if (this._state != EPlayerState.Loading) {
-            return;
-        }
-
-        this._state = EPlayerState.BecomePlaying;
-
-        const timeRemaining =
-            FORCE_LOADING_TIME - (+new Date() - +this._startLoadingDate!);
-        if (timeRemaining > 0) {
-            setTimeout(() => this._ready(), timeRemaining);
-            return;
-        }
-
-        this._ready();
     }
 
     controller(id: number): IController | undefined {
