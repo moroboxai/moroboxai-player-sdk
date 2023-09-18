@@ -12,7 +12,10 @@
         <div class="horizontal">
             <div id="player"></div>
         </div>
-        <div id="info">
+        <div class="info horizontal">
+            <button id="attach"></button>
+        </div>
+        <div class="info">
             <div>
                 moroboxai-game-sdk v<span
                     id="moroboxai-game-sdk-version"
@@ -34,30 +37,47 @@
         document.getElementById("moroboxai-player-sdk-version").innerText =
             MoroboxAIPlayerSDK.VERSION;
 
-        const player = MoroboxAIPlayerSDK.init(
-            // Gutter for making the player work
-            {
-                inputController: () => {},
-                fileServer: (baseUrl) => new FetchFileServer(baseUrl),
-                zipServer: (zipUrl) => {}
-            },
-            // Root element of the player
-            document.getElementById("player"),
-            // Options for the player
-            {
-                url: "https://raw.githubusercontent.com/moroboxai/moroboxai-games/master/piximoroxel8ai-sample/sample/header.yml",
-                resizable: false,
-                autoPlay: true,
-                width: 256,
-                height: 256,
-                agents: [
+        let player = null;
+        const attachButton = document.getElementById("attach");
+
+        function attach() {
+            if (player === null) {
+                // Attach player to the DOM
+                player = MoroboxAIPlayerSDK.init(
+                    // Gutter for making the player work
                     {
-                        url: "https://raw.githubusercontent.com/moroboxai/moroboxai-games/master/piximoroxel8ai-sample/sample/agent.js"
+                        inputController: () => {},
+                        fileServer: (baseUrl) => new FetchFileServer(baseUrl),
+                        zipServer: (zipUrl) => {}
+                    },
+                    // Root element of the player
+                    document.getElementById("player"),
+                    // Options for the player
+                    {
+                        url: "https://raw.githubusercontent.com/moroboxai/moroboxai-games/master/piximoroxel8ai-sample/sample/header.yml",
+                        resizable: false,
+                        autoPlay: true,
+                        scale: 2,
+                        agents: [
+                            {
+                                url: "https://raw.githubusercontent.com/moroboxai/moroboxai-games/master/piximoroxel8ai-sample/sample/agent.js"
+                            }
+                        ],
+                        onReady: () => console.log("ready")
                     }
-                ],
-                onReady: () => console.log("ready")
+                );
+
+                attachButton.textContent = "Detach Player";
+            } else {
+                // Remove player from DOM
+                player.remove();
+                player = null;
+                attachButton.textContent = "Attach Player";
             }
-        );
+        }
+
+        attachButton.onclick = () => attach();
+        attach();
     </script>
 
     <style>
@@ -86,7 +106,7 @@
             background-size: cover;
         }
 
-        #info {
+        .info {
             margin-top: 2em;
             text-align: center;
         }

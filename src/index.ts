@@ -7,6 +7,7 @@ import type {
 } from "./controller";
 import { Overlay } from "./overlay";
 import { GameServer } from "./server";
+import { DEFAULT_PLAYER_HEIGHT, DEFAULT_PLAYER_WIDTH } from "./constants";
 
 export type {
     SupportedAgentLanguage,
@@ -24,7 +25,7 @@ export { VERSION as GAME_SDK_VERSION } from "moroboxai-game-sdk";
 /**
  * Version of the SDK.
  */
-export const VERSION: string = "0.1.0-alpha.32";
+export const VERSION: string = "0.1.0-alpha.33";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -73,6 +74,8 @@ export interface IPlayerOptions {
     // Player size in pixels
     width?: number;
     height?: number;
+    // Scale of the player based on native size of the game
+    scale?: number;
     resizable?: boolean;
     // Play the game after init
     autoPlay?: boolean;
@@ -92,6 +95,8 @@ export interface IPlayer {
     width: number;
     // Get/Set the player's height
     height: number;
+    // Get/Set the scale of player
+    scale: number;
     // Get/Set if the player is resizable
     resizable: boolean;
     // Get/Set the URL where to find the game header
@@ -371,6 +376,11 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             this._ui.wrapper.appendChild(div);
         }
 
+        if (this._options.width === undefined && this._options.height === undefined) {
+            this._options.width = DEFAULT_PLAYER_WIDTH;
+            this._options.height = DEFAULT_PLAYER_HEIGHT;
+        }
+
         this.resize({
             width: this._options.width,
             height: this._options.height
@@ -633,13 +643,13 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         }
 
         if (width !== undefined) {
-            this._ui.wrapper.style.width = `${width}px`;
+            this._ui.wrapper.style.width = `${Math.round(width)}px`;
         } else {
             this._ui.wrapper.style.width = "100%";
         }
 
         if (height !== undefined) {
-            this._ui.wrapper.style.height = `${height}px`;
+            this._ui.wrapper.style.height = `${Math.round(height)}px`;
         } else {
             this._ui.wrapper.style.height = "100%";
         }
@@ -720,6 +730,28 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
     set height(value: number) {
         this.resize({ height: value });
+    }
+
+    get scale(): number {
+        if (this._game === undefined) {
+            return 1;
+        }
+
+        return Math.min(
+            this.width / this._game.width,
+            this.height / this._game.height
+        );
+    }
+
+    set scale(value: number) {
+        if (this._game !== undefined) {
+            value /= this._game.scale ?? 1;
+
+            this.resize({
+                width: this._game.width * value,
+                height: this._game.height * value
+            })
+        }
     }
 
     get resizable(): boolean {
@@ -1073,6 +1105,14 @@ export class MetaPlayer implements IMetaPlayer {
 
     set height(val: number) {
         this._players.forEach((other) => (other.height = val));
+    }
+
+    get scale(): number {
+        return this.masterPlayer!.scale;
+    }
+
+    set scale(val: number) {
+        this._players.forEach((other) => (other.scale = val));
     }
 
     get resizable(): boolean {
