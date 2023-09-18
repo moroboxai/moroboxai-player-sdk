@@ -24,7 +24,7 @@ export { VERSION as GAME_SDK_VERSION } from "moroboxai-game-sdk";
 /**
  * Version of the SDK.
  */
-export const VERSION: string = "0.1.0-alpha.30";
+export const VERSION: string = "0.1.0-alpha.31";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -229,6 +229,14 @@ class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
         return this._player.header;
     }
 
+    get frame(): number {
+        return this._player.frame;
+    }
+
+    get time(): number {
+        return this._player.time;
+    }
+
     resize(
         width: { width?: number; height?: number } | number,
         height?: number
@@ -273,6 +281,10 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
     private _resizeListener?: () => void;
     private _speed: number = 1;
     private _physicsAccumulator: number = 0;
+    // Frame counter for player and game
+    private _frame: number = 0;
+    // Time counter for player and game
+    private _time: number = 0;
 
     get isLoading(): boolean {
         return this._state == EPlayerState.Loading;
@@ -760,6 +772,14 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         this._options.simulated = value;
     }
 
+    get frame(): number {
+        return this._frame;
+    }
+
+    get time(): number {
+        return this._time;
+    }
+
     ticker?: (detla: number) => void;
 
     play(): void;
@@ -888,17 +908,21 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
         this._physicsAccumulator += delta * this.speed;
         while (this._physicsAccumulator > PHYSICS_TIMESTEP) {
-            this._tickOneFrame(PHYSICS_TIMESTEP);
+            this._tickOneFrame(PHYSICS_TIMESTEP, false);
             this._physicsAccumulator -= PHYSICS_TIMESTEP;
         }
 
-        this._tickOneFrame(PHYSICS_TIMESTEP);
+        // Render the last frame
+        this._tickOneFrame(PHYSICS_TIMESTEP, true);
     }
 
-    _tickOneFrame(delta: number): void {
+    _tickOneFrame(delta: number, render: boolean): void {
+        // Increase time
+        this._time += delta;
+        this._frame++;
         // Ask the agents the next inputs and tick the game
         const state = this._game!.getStateForAgent();
-        this._game!.tick(this._controllerBus.inputs(state), delta);
+        this._game!.tick(this._controllerBus.inputs(state), delta, render);
     }
 
     getController(controllerId: number): IController | undefined {
