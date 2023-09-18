@@ -24,7 +24,7 @@ export { VERSION as GAME_SDK_VERSION } from "moroboxai-game-sdk";
 /**
  * Version of the SDK.
  */
-export const VERSION: string = "0.1.0-alpha.31";
+export const VERSION: string = "0.1.0-alpha.32";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -436,8 +436,6 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             console.log("header loaded");
             console.log(header);
             this._options.header = header;
-
-            this._proxy.resize({ width: header.width, height: header.height });
         });
     }
 
