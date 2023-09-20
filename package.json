@@ -1,16 +1,16 @@
 {
     "name": "moroboxai-player-sdk",
-    "version": "0.1.0-alpha.35",
+    "version": "0.1.0-alpha.36",
     "description": "MoroboxAI SDK for embedding games",
     "author": "moroboxai",
     "main": "./lib/cjs/index.cjs",
     "module": "./lib/es/index.js",
     "unpkg": "./lib/umd/moroboxai-player-sdk.min.js",
     "jsdelivr": "./lib/umd/moroboxai-player-sdk.min.js",
-    "types": "./lib/es/index.d.ts",
+    "types": "./lib/index.d.ts",
     "scripts": {
         "dev": "vite",
-        "build": "vite build --config vite.config.lib.js && tsc && vite build",
+        "build": "vite build --config vite.config.lib.js && tsc --emitDeclarationOnly && vite build",
         "preview": "vite preview",
         "prepublish": "npm run build"
     },
@@ -25,13 +25,14 @@
     },
     "homepage": "https://github.com/moroboxai/moroboxai-player-sdk#readme",
     "devDependencies": {
-        "@types/node": "^20.6.0",
+        "@types/node": "^20.6.2",
         "path": "^0.12.7",
-        "typescript": "^4.6.3",
-        "vite": "^2.8.6"
+        "rollup-plugin-copy": "^3.5.0",
+        "typescript": "^5.2.2",
+        "vite": "^4.4.9"
     },
     "dependencies": {
         "moroboxai-game-sdk": "^0.1.0-alpha.35",
-        "yaml": "^2.1.1"
+        "yaml": "^2.3.2"
     }
 }

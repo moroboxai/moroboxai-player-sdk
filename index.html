@@ -1,11 +1,6 @@
 <html>
     <head>
         <title>MoroboxAIPlayerSDK Sample</title>
-        <!-- For running the sample game -->
-        <script
-            type="text/javascript"
-            src="https://cdn.jsdelivr.net/npm/piximoroxel8ai@latest/lib/umd/piximoroxel8ai.min.js"
-        ></script>
     </head>
 
     <body class="vertical">
@@ -54,13 +49,13 @@
                     document.getElementById("player"),
                     // Options for the player
                     {
-                        url: "https://raw.githubusercontent.com/moroboxai/moroboxai-games/master/piximoroxel8ai-sample/sample/header.yml",
-                        resizable: false,
+                        url: "https://raw.githubusercontent.com/moroboxai/create-moroboxai-game/master/examples/canvas2d-rgb/header-js.yml",
+                        resizable: true,
                         autoPlay: true,
-                        scale: 2,
+                        scale: 1,
                         agents: [
                             {
-                                url: "https://raw.githubusercontent.com/moroboxai/moroboxai-games/master/piximoroxel8ai-sample/sample/agent.js"
+                                url: "https://raw.githubusercontent.com/moroboxai/create-moroboxai-game/master/examples/canvas2d-rgb/agent.js"
                             }
                         ],
                         onReady: () => console.log("ready")

@@ -1,8 +1,4 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
-import YAML from "yaml";
-
-// Name of the header file
-const HEADER_FILE = "header.yml";
 
 /**
  * Fetch data from an URL.
@@ -74,11 +70,5 @@ export class GameServer implements MoroboxAIGameSDK.IGameServer {
 
     close(callback?: (err: any) => void): void {
         this._server.close(callback);
-    }
-
-    gameHeader(): Promise<MoroboxAIGameSDK.GameHeader> {
-        return this._server.get(HEADER_FILE).then((data) => {
-            return YAML.parse(data) as MoroboxAIGameSDK.GameHeader;
-        });
     }
 }

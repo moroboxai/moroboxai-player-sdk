@@ -1,3 +1,4 @@
+import YAML from "yaml";
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
 import { ControllerBus } from "./controller";
 import type {
@@ -25,7 +26,7 @@ export { VERSION as GAME_SDK_VERSION } from "moroboxai-game-sdk";
 /**
  * Version of the SDK.
  */
-export const VERSION: string = "0.1.0-alpha.35";
+export const VERSION: string = "__VERSION__";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -430,21 +431,26 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
     // This task is for loading the header.yml file
     private _loadHeader(): Promise<void> {
-        console.log("load header...");
         return new Promise<MoroboxAIGameSDK.GameHeader>((resolve, reject) => {
             // The header is provided by user
             if (this._options.header !== undefined) {
                 return resolve(this._options.header);
             }
 
-            if (this._gameServer === undefined) {
+            if (this._options.url === undefined || this._gameServer === undefined) {
                 return reject("failed to get header");
             }
 
-            return this._gameServer.gameHeader().then(resolve);
+            let headerName = this._options.url.split("/").slice(-1)[0];
+            if (!headerName.endsWith(".yml") && !headerName.endsWith(".yaml")) {
+                headerName = "header.yml";
+            }
+            console.log(`load header ${headerName}...`);
+            return this._gameServer.get(headerName).then(data => {
+                return resolve(YAML.parse(data) as MoroboxAIGameSDK.GameHeader);
+            });
         }).then((header) => {
-            console.log("header loaded");
-            console.log(header);
+            console.log("header loaded", header);
             this._options.header = header;
         });
     }
@@ -475,11 +481,16 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
     private _loadBoot(): Promise<void> {
         console.log("load boot...");
-        const boot = this.header!.boot;
-        if (boot !== undefined) {
-            if (!boot.endsWith(".js")) {
-                // boot is not a js file, maybe a module
-                return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
+            const boot = this.header!.boot;
+            if (boot !== undefined) {
+                if (typeof boot === "function") {
+                    this._exports.boot = boot;
+                    return resolve();
+                }
+
+                if (!boot.endsWith(".js") && !boot.endsWith(".ts")) {
+                    // boot is not a js file, maybe a module
                     const m = (window as any)[boot];
                     if (m === undefined || m.boot === undefined) {
                         return reject("invalid boot module");
@@ -488,39 +499,37 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
                     this._exports.boot = m.boot;
 
                     return resolve();
-                });
-            }
+                }
 
-            if (boot.startsWith("http")) {
-                // direct URL
-                return fetch(this.header?.boot!)
-                    .then((res) => {
-                        if (!res.ok) {
-                            throw new Error(res.statusText);
-                        }
+                if (boot.startsWith("http")) {
+                    // direct URL
+                    return fetch(boot)
+                        .then((res) => {
+                            if (!res.ok) {
+                                throw new Error(res.statusText);
+                            }
 
-                        return res.text();
-                    })
-                    .then((data) => {
+                            return res.text();
+                        })
+                        .then((data) => {
+                            this._getBootFunction(data);
+
+                            return resolve();
+                        });
+                }
+
+                // load boot from a file with the game server
+                if (this._gameServer !== undefined) {
+                    return this._gameServer.get(boot).then((data) => {
                         this._getBootFunction(data);
 
-                        return Promise.resolve();
+                        return resolve();
                     });
+                }
             }
 
-            // load boot from a file with the game server
-            if (this._gameServer !== undefined) {
-                return this._gameServer.get(boot).then((data) => {
-                    this._getBootFunction(data);
-
-                    return Promise.resolve();
-                });
-            }
-        }
-
-        return new Promise<void>((resolve, reject) =>
-            reject("failed to load boot")
-        );
+            return reject("failed to load boot");
+        });
     }
 
     private _loadGame(): Promise<void> {
