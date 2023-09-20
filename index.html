@@ -16,11 +16,6 @@
                     id="moroboxai-game-sdk-version"
                 ></span>
             </div>
-            <div>
-                moroboxai-player-sdk v<span
-                    id="moroboxai-player-sdk-version"
-                ></span>
-            </div>
         </div>
     </body>
     <script type="module">
@@ -29,8 +24,6 @@
 
         document.getElementById("moroboxai-game-sdk-version").innerText =
             MoroboxAIPlayerSDK.GAME_SDK_VERSION;
-        document.getElementById("moroboxai-player-sdk-version").innerText =
-            MoroboxAIPlayerSDK.VERSION;
 
         let player = null;
         const attachButton = document.getElementById("attach");
