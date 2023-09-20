@@ -1,6 +1,7 @@
 <html>
     <head>
         <title>MoroboxAIPlayerSDK Sample</title>
+      <script type="module" crossorigin src="/moroboxai-player-sdk/assets/index-d809f74d.js"></script>
     </head>
 
     <body class="vertical">
@@ -23,57 +24,7 @@
             </div>
         </div>
     </body>
-    <script type="module">
-        import * as MoroboxAIPlayerSDK from "./src/index.ts";
-        import { FetchFileServer } from "./src/server.ts";
-
-        document.getElementById("moroboxai-game-sdk-version").innerText =
-            MoroboxAIPlayerSDK.GAME_SDK_VERSION;
-        document.getElementById("moroboxai-player-sdk-version").innerText =
-            MoroboxAIPlayerSDK.VERSION;
-
-        let player = null;
-        const attachButton = document.getElementById("attach");
-
-        function attach() {
-            if (player === null) {
-                // Attach player to the DOM
-                player = MoroboxAIPlayerSDK.init(
-                    // Gutter for making the player work
-                    {
-                        inputController: () => {},
-                        fileServer: (baseUrl) => new FetchFileServer(baseUrl),
-                        zipServer: (zipUrl) => {}
-                    },
-                    // Root element of the player
-                    document.getElementById("player"),
-                    // Options for the player
-                    {
-                        url: "https://raw.githubusercontent.com/moroboxai/create-moroboxai-game/master/examples/canvas2d-rgb/header-js.yml",
-                        resizable: true,
-                        autoPlay: true,
-                        scale: 1,
-                        agents: [
-                            {
-                                url: "https://raw.githubusercontent.com/moroboxai/create-moroboxai-game/master/examples/canvas2d-rgb/agent.js"
-                            }
-                        ],
-                        onReady: () => console.log("ready")
-                    }
-                );
-
-                attachButton.textContent = "Detach Player";
-            } else {
-                // Remove player from DOM
-                player.remove();
-                player = null;
-                attachButton.textContent = "Attach Player";
-            }
-        }
-
-        attachButton.onclick = () => attach();
-        attach();
-    </script>
+    
 
     <style>
         body {
