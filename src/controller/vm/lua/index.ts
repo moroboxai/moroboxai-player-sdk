@@ -26,7 +26,7 @@ class LuaVM implements IVM {
 
     inputs(state: object): MoroboxAIGameSDK.IInputs {
         call(this.luaState, "inputs", state);
-        return pop(this.luaState, -1);
+        return pop(this.luaState);
     }
 }
 
