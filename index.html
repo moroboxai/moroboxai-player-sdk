@@ -1,20 +1,32 @@
 <html>
     <head>
         <title>MoroboxAIPlayerSDK Sample</title>
-      <script type="module" crossorigin src="/moroboxai-player-sdk/assets/index-f6016985.js"></script>
+      <script type="module" crossorigin src="/moroboxai-player-sdk/assets/index-9b4d7031.js"></script>
     </head>
 
     <body class="vertical">
         <div class="horizontal">
             <div id="player"></div>
+            <div id="editor"></div>
         </div>
         <div class="info horizontal">
-            <button id="attach"></button>
+            <button id="attach-player"></button>
+            <button id="attach-editor"></button>
         </div>
         <div class="info">
             <div>
+                moroboxai-lua v<span
+                    id="moroboxai-lua-version"
+                ></span>
+            </div>
+            <div>
                 moroboxai-game-sdk v<span
                     id="moroboxai-game-sdk-version"
+                ></span>
+            </div>
+            <div>
+                moroboxai-editor-web v<span
+                    id="moroboxai-editor-web-version"
                 ></span>
             </div>
         </div>
@@ -45,11 +57,17 @@
         #player {
             background-color: black;
             background-size: cover;
+            margin-left: 10em;
+            margin-right: 2em;
         }
 
         .info {
             margin-top: 2em;
             text-align: center;
+        }
+
+        .info button ~ button {
+            margin-left: 1em;
         }
     </style>
 </html>
