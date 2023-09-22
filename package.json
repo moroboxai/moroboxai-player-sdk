@@ -1,6 +1,6 @@
 {
     "name": "moroboxai-player-sdk",
-    "version": "0.1.0-alpha.36",
+    "version": "0.1.0-alpha.37",
     "description": "MoroboxAI SDK for embedding games",
     "author": "moroboxai",
     "main": "./lib/cjs/index.cjs",
@@ -25,15 +25,17 @@
         "url": "https://github.com/moroboxai/moroboxai-player-sdk/issues"
     },
     "homepage": "https://github.com/moroboxai/moroboxai-player-sdk#readme",
-    "devDependencies": {
-        "@types/node": "^20.6.2",
-        "path": "^0.12.7",
-        "rollup-plugin-copy": "^3.5.0",
-        "typescript": "^5.2.2",
-        "vite": "^4.4.9"
-    },
     "dependencies": {
         "moroboxai-game-sdk": "^0.1.0-alpha.35",
+        "moroboxai-lua": "^0.1.0-alpha.4",
+        "fengari-web": "^0.1.4",
         "yaml": "^2.3.2"
+    },
+    "devDependencies": {
+        "moroboxai-editor-web": "^0.1.1-alpha.6",
+        "@types/node": "^20.6.2",
+        "path": "^0.12.7",
+        "typescript": "^5.2.2",
+        "vite": "^4.4.9"
     }
 }

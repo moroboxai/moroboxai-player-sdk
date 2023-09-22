@@ -6,29 +6,49 @@
     <body class="vertical">
         <div class="horizontal">
             <div id="player"></div>
+            <div id="editor"></div>
         </div>
         <div class="info horizontal">
-            <button id="attach"></button>
+            <button id="attach-player"></button>
+            <button id="attach-editor"></button>
         </div>
         <div class="info">
+            <div>
+                moroboxai-lua v<span
+                    id="moroboxai-lua-version"
+                ></span>
+            </div>
             <div>
                 moroboxai-game-sdk v<span
                     id="moroboxai-game-sdk-version"
                 ></span>
             </div>
+            <div>
+                moroboxai-editor-web v<span
+                    id="moroboxai-editor-web-version"
+                ></span>
+            </div>
         </div>
     </body>
     <script type="module">
+        import * as MoroboxAILua from "moroboxai-lua";
+        import * as MoroboxAIEditor from "moroboxai-editor-web";
         import * as MoroboxAIPlayerSDK from "./src/index.ts";
         import { FetchFileServer } from "./src/server.ts";
 
+        document.getElementById("moroboxai-lua-version").innerText =
+            MoroboxAILua.VERSION;
         document.getElementById("moroboxai-game-sdk-version").innerText =
             MoroboxAIPlayerSDK.GAME_SDK_VERSION;
+        document.getElementById("moroboxai-editor-web-version").innerText =
+            MoroboxAIEditor.VERSION;
 
         let player = null;
-        const attachButton = document.getElementById("attach");
+        let editor = null;
+        const attachPlayerButton = document.getElementById("attach-player");
+        const attachEditorButton = document.getElementById("attach-editor");
 
-        function attach() {
+        function attachPlayer() {
             if (player === null) {
                 // Attach player to the DOM
                 player = MoroboxAIPlayerSDK.init(
@@ -46,26 +66,49 @@
                         resizable: true,
                         autoPlay: true,
                         scale: 1,
-                        agents: [
-                            {
-                                url: "https://raw.githubusercontent.com/moroboxai/create-moroboxai-game/master/examples/canvas2d-rgb/agent.js"
-                            }
-                        ],
                         onReady: () => console.log("ready")
                     }
                 );
 
-                attachButton.textContent = "Detach Player";
+                attachPlayerButton.textContent = "Detach Player";
             } else {
                 // Remove player from DOM
                 player.remove();
                 player = null;
-                attachButton.textContent = "Attach Player";
+                attachPlayerButton.textContent = "Attach Player";
             }
         }
 
-        attachButton.onclick = () => attach();
-        attach();
+        function attachEditor() {
+            if (editor === null) {
+                // Attach editor to the DOM
+                editor = MoroboxAIEditor.init({
+                    // Root element of the editor
+                    element: document.getElementById("editor"),
+                    url: "https://raw.githubusercontent.com/moroboxai/create-moroboxai-game/master/examples/canvas2d-rgb/agent.*",
+                    width: "500px",
+                    height: "400px",
+                    onLoad: (language, value) =>
+                        player.getController(0).loadAgent({
+                            language: language,
+                            code: value
+                        }),
+                    onUnload: () => player.getController(0).unloadAgent()
+                });
+
+                attachEditorButton.textContent = "Detach Editor";
+            } else {
+                // Remove editor from DOM
+                editor.remove();
+                editor = null;
+                attachEditorButton.textContent = "Attach Editor";
+            }
+        }
+
+        attachPlayerButton.onclick = () => attachPlayer();
+        attachEditorButton.onclick = () => attachEditor();
+        attachPlayer();
+        attachEditor();
     </script>
 
     <style>
@@ -92,11 +135,17 @@
         #player {
             background-color: black;
             background-size: cover;
+            margin-left: 10em;
+            margin-right: 2em;
         }
 
         .info {
             margin-top: 2em;
             text-align: center;
+        }
+
+        .info button ~ button {
+            margin-left: 1em;
         }
     </style>
 </html>

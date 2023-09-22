@@ -1,14 +1,15 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
+import type { AgentLanguage, IVM } from "./vm";
+import { initVM } from "./vm";
 
-// Supported languages for agents
-export type SupportedAgentLanguage = "javascript" | "lua";
+export type { AgentLanguage } from "./vm";
 
 /**
  * Interface for loaded agents.
  */
 export interface IAgent {
     // Language of the code
-    language: SupportedAgentLanguage;
+    language: AgentLanguage;
     // URL of the agent
     url?: string;
     // Code of the agent
@@ -20,7 +21,7 @@ export interface IAgent {
  */
 export type IAgentOptions = {
     // Language of the code
-    language?: SupportedAgentLanguage;
+    language?: AgentLanguage;
 } & (
     | {
           // URL where to find the code
@@ -73,29 +74,22 @@ class AgentController implements IController {
     // Loaded agent
     private _agent?: IAgent;
 
-    // Functions exported by the agent
-    private _context: {
-        // Label to display for this agent
-        LABEL?: string;
-        // Function exported from the code to compute the next input
-        inputs?: (state: object) => MoroboxAIGameSDK.IInputs;
-        // Save/Load the state of the agent
-        saveState?: () => object;
-        loadState?: (state: object) => void;
-    } = {};
+    // VM running the code for the agent
+    private _vm?: IVM;
+
+    // Has the VM exception been logged
+    private _exceptionLogged: boolean = false;
 
     get id(): number {
         return 0;
     }
 
     get label(): string {
-        return this._context.LABEL !== undefined
-            ? this._context.LABEL
-            : "Agent";
+        return "Agent";
     }
 
     get isBound(): boolean {
-        return this._context.inputs !== undefined;
+        return this._vm !== undefined;
     }
 
     get isAgent(): boolean {
@@ -112,35 +106,20 @@ class AgentController implements IController {
 
     loadAgent(options: IAgentOptions): Promise<void> {
         return new Promise<void>((resolve) => {
-            function typeFromUrl(url: string): SupportedAgentLanguage {
+            function typeFromUrl(url: string): AgentLanguage {
+                if (url.endsWith(".lua")) {
+                    return "lua";
+                }
+
                 return "javascript";
             }
 
             const loadFromCode = (
-                language: SupportedAgentLanguage,
+                language: AgentLanguage,
                 url: string | undefined,
                 code: string
             ) => {
-                const context = {};
-                new Function(
-                    "exports",
-                    `${code} 
-                if (typeof LABEL !== "undefined") {
-                    exports.LABEL = LABEL;
-                }
-                
-                if (typeof saveState !== "undefined") {
-                    exports.saveState = saveState;
-                }
-                
-                if (typeof loadState !== "undefined") {
-                    exports.loadState = loadState;
-                }
-                
-                if (typeof inputs !== "undefined") {
-                    exports.inputs = inputs;
-                }`
-                )(context);
+                const vm = initVM(language, code);
 
                 this._agent = {
                     language,
@@ -148,7 +127,8 @@ class AgentController implements IController {
                     code
                 };
                 this.unloadAgent();
-                this._context = context;
+                this._vm = vm;
+                this._exceptionLogged = false;
 
                 resolve();
             };
@@ -167,9 +147,7 @@ class AgentController implements IController {
                     );
             } else if (options.code !== undefined) {
                 loadFromCode(
-                    options.language !== undefined
-                        ? options.language
-                        : "javascript",
+                    options.language ?? "javascript",
                     undefined,
                     options.code
                 );
@@ -178,28 +156,49 @@ class AgentController implements IController {
     }
 
     unloadAgent(): void {
-        this._context = {};
+        this._vm = undefined;
     }
 
     inputs(state: object): MoroboxAIGameSDK.IInputs {
-        if (this._context.inputs === undefined) {
-            return {};
+        if (this._vm !== undefined) {
+            try {
+                return this._vm.inputs(state);
+            } catch (e) {
+                if (!this._exceptionLogged) {
+                    this._exceptionLogged = true;
+                    console.log("error calling inputs", e);
+                }
+            }
         }
 
-        return this._context.inputs(state);
+        return {};
     }
 
     saveState(): object {
-        if (this._context.saveState !== undefined) {
-            return this._context.saveState();
+        if (this._vm !== undefined) {
+            try {
+                return this._vm.saveState();
+            } catch (e) {
+                if (!this._exceptionLogged) {
+                    this._exceptionLogged = true;
+                    console.log("error calling saveState", e);
+                }
+            }
         }
 
         return {};
     }
 
     loadState(state: object) {
-        if (this._context.loadState !== undefined) {
-            this._context.loadState(state);
+        if (this._vm !== undefined) {
+            try {
+                this._vm.loadState(state);
+            } catch (e) {
+                if (!this._exceptionLogged) {
+                    this._exceptionLogged = true;
+                    console.log("error calling loadState", e);
+                }
+            }
         }
     }
 }

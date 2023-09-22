@@ -11,7 +11,7 @@ import { GameServer } from "./server";
 import { DEFAULT_PLAYER_HEIGHT, DEFAULT_PLAYER_WIDTH } from "./constants";
 
 export type {
-    SupportedAgentLanguage,
+    AgentLanguage,
     IAgentOptions,
     IAgent,
     IInputController,
@@ -377,7 +377,10 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             this._ui.wrapper.appendChild(div);
         }
 
-        if (this._options.width === undefined && this._options.height === undefined) {
+        if (
+            this._options.width === undefined &&
+            this._options.height === undefined
+        ) {
             this._options.width = DEFAULT_PLAYER_WIDTH;
             this._options.height = DEFAULT_PLAYER_HEIGHT;
         }
@@ -437,7 +440,10 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
                 return resolve(this._options.header);
             }
 
-            if (this._options.url === undefined || this._gameServer === undefined) {
+            if (
+                this._options.url === undefined ||
+                this._gameServer === undefined
+            ) {
                 return reject("failed to get header");
             }
 
@@ -446,7 +452,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
                 headerName = "header.yml";
             }
             console.log(`load header ${headerName}...`);
-            return this._gameServer.get(headerName).then(data => {
+            return this._gameServer.get(headerName).then((data) => {
                 return resolve(YAML.parse(data) as MoroboxAIGameSDK.GameHeader);
             });
         }).then((header) => {
@@ -764,7 +770,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
             this.resize({
                 width: this._game.width * value,
                 height: this._game.height * value
-            })
+            });
         }
     }
 

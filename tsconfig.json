@@ -14,6 +14,7 @@
         "stripInternal": true,
         "lib": ["es5", "es6", "dom"],
         "paths": {
+            "fengari-web": ["typings/fengari"],
             "*": [
                 "node_modules/*"
             ]
