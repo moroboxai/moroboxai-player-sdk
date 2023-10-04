@@ -1,14 +1,13 @@
-import YAML from "yaml";
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
 import { ControllerBus } from "./controller";
-import type {
-    IAgentOptions,
-    IInputController,
-    IController
-} from "./controller";
+import type { IInputController, IController } from "./controller";
 import { Overlay } from "./overlay";
 import { GameServer } from "./server";
 import { DEFAULT_PLAYER_HEIGHT, DEFAULT_PLAYER_WIDTH } from "./constants";
+import type { IPlayer, IPlayerOptions } from "./player";
+export * from "./player";
+import { PluginContext, PluginDriver, defaultPlugin } from "./plugin";
+export * from "./plugin";
 
 export type {
     AgentLanguage,
@@ -62,117 +61,6 @@ function createFileServer(
     }
 
     return sdkConfig.fileServer(baseUrl);
-}
-
-// Possible options for initializing the player
-export interface IPlayerOptions {
-    element?: Element | Element[] | HTMLCollectionOf<Element>;
-    // URL where to find the game header
-    url?: string;
-    // Direct game header
-    header?: MoroboxAIGameSDK.GameHeader;
-    splashart?: string;
-    // Player size in pixels
-    width?: number;
-    height?: number;
-    // Scale of the player based on native size of the game
-    scale?: number;
-    resizable?: boolean;
-    // Play the game after init
-    autoPlay?: boolean;
-    // Desired game speed
-    speed?: number;
-    // Simulated or not
-    simulated?: boolean;
-    // List of agents
-    agents?: Array<IAgentOptions>;
-    onReady?: () => void;
-}
-
-export interface IPlayer {
-    // Get/Set the game speed
-    speed: number;
-    // Get/Set the player's width
-    width: number;
-    // Get/Set the player's height
-    height: number;
-    // Get/Set the scale of player
-    scale: number;
-    // Get/Set if the player is resizable
-    resizable: boolean;
-    // Get/Set the URL where to find the game header
-    // Changing the URL will stop the game
-    url: string | undefined;
-    // Get/Set the game header
-    // Changing the header will stop the game
-    header: MoroboxAIGameSDK.GameHeader | undefined;
-    // Get/Set weither to game should play automatically
-    autoPlay: boolean;
-    // Simulated or not
-    simulated: boolean;
-    // Hook called by the player when ticked
-    ticker?: (delta: number) => void;
-    // If the player is loading the game
-    readonly isLoading: boolean;
-    // If the game has been loaded and is playing
-    readonly isPlaying: boolean;
-    // If the game has been paused
-    readonly isPaused: boolean;
-
-    // Play the game as configured during init
-    play(): void;
-
-    // Play the game from URL
-    play(url: string): void;
-
-    // Play the game from URL or header
-    play(options: {
-        // New game URL
-        url?: string;
-        // New game header
-        header?: MoroboxAIGameSDK.GameHeader;
-        // Bypass the default autoPlay value
-        autoPlay?: boolean;
-    }): void;
-
-    // Called when the game starts playing
-    onReady?: () => void;
-
-    // Pause the game
-    pause(): void;
-
-    // Stop the game
-    stop(): void;
-
-    /**
-     * Save the state of the game.
-     */
-    saveState(): object;
-
-    /**
-     * Load the state of the game.
-     */
-    loadState(state: object): void;
-
-    /**
-     * Tick the player.
-     * @param {number} delta - elapsed time
-     */
-    tick(delta: number): void;
-
-    /**
-     * Get a controller by id.
-     * @param {number} controllerId - Controller id
-     * @returns {IController} Controller
-     */
-    getController(controllerId: number): IController | undefined;
-
-    // Remove the player from document
-    remove(): void;
-
-    // Resize the player
-    resize(options: { width?: number; height?: number }): void;
-    resize(width: number, height: number): void;
 }
 
 export interface IMetaPlayer extends IPlayer {
@@ -264,7 +152,7 @@ class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
 }
 
 // Player instance for controlling the game
-class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
+class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
     private _proxy: PlayerProxy;
     private _config: ISDKConfig;
     private _state: EPlayerState = EPlayerState.Idle;
@@ -275,6 +163,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         overlay?: Overlay;
     } = {};
     private _options: IPlayerOptions;
+    private _pluginDriver: PluginDriver;
     private _readyCallback?: () => void;
     private _playTask?: Promise<void>;
     private _startLoadingDate?: Date;
@@ -308,6 +197,12 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         this._proxy = new PlayerProxy(this);
         this._config = config;
         this._options = options;
+        this._pluginDriver = new PluginDriver(this, [
+            defaultPlugin(),
+            ...(this._options.plugins !== undefined
+                ? this._options.plugins
+                : [])
+        ]);
         this._controllerBus = new ControllerBus({
             player: this,
             inputController: config.inputController
@@ -434,27 +329,28 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
 
     // This task is for loading the header.yml file
     private _loadHeader(): Promise<void> {
-        return new Promise<MoroboxAIGameSDK.GameHeader>((resolve, reject) => {
-            // The header is provided by user
-            if (this._options.header !== undefined) {
-                return resolve(this._options.header);
+        return new Promise<MoroboxAIGameSDK.GameHeader>(async (resolve) => {
+            const options = {
+                url: this._options.url,
+                header: this._options.header
+            };
+
+            await this._pluginDriver.hookReduceArg0(
+                "loadHeader",
+                [options],
+                (options, result, plugin) => {
+                    if (result !== null) {
+                        options.header = result;
+                    }
+                    return options;
+                }
+            );
+
+            if (options.header === undefined) {
+                throw "could not load header";
             }
 
-            if (
-                this._options.url === undefined ||
-                this._gameServer === undefined
-            ) {
-                return reject("failed to get header");
-            }
-
-            let headerName = this._options.url.split("/").slice(-1)[0];
-            if (!headerName.endsWith(".yml") && !headerName.endsWith(".yaml")) {
-                headerName = "header.yml";
-            }
-            console.log(`load header ${headerName}...`);
-            return this._gameServer.get(headerName).then((data) => {
-                return resolve(YAML.parse(data) as MoroboxAIGameSDK.GameHeader);
-            });
+            return resolve(options.header);
         }).then((header) => {
             console.log("header loaded", header);
             this._options.header = header;
@@ -569,7 +465,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         header?: MoroboxAIGameSDK.GameHeader,
         autoPlay?: boolean
     ): void {
-        if (url !== undefined || header !== undefined) {
+        if (url !== undefined) {
             // Changing the URL, or header, stops the game
             this.stop();
 
@@ -790,11 +686,11 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
         this._speed = value;
     }
 
-    get url(): string | undefined {
+    get url(): string {
         return this._options.url;
     }
 
-    set url(value: string | undefined) {
+    set url(value: string) {
         this.play({ url: value });
     }
 
@@ -986,6 +882,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer {
  */
 export function defaultOptions(): IPlayerOptions {
     return {
+        url: "",
         resizable: true,
         speed: 1
     };
@@ -1143,11 +1040,11 @@ export class MetaPlayer implements IMetaPlayer {
         this._players.forEach((other) => (other.resizable = val));
     }
 
-    get url(): string | undefined {
+    get url(): string {
         return this.masterPlayer!.url;
     }
 
-    set url(val: string | undefined) {
+    set url(val: string) {
         this._players.forEach((other) => (other.url = val));
     }
 
