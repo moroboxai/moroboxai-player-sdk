@@ -1,8 +1,8 @@
-import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
+import type { Inputs } from "moroboxai-game-sdk";
 import * as MoroboxAILua from "moroboxai-lua";
-import { getstring, getobject, push, pop, get, call } from "moroboxai-lua";
+import { pop, call } from "moroboxai-lua";
 import { IVM } from "../_utils";
-import { lua_State, lua, to_luastring } from "fengari-web";
+import { lua_State } from "fengari-web";
 
 class LuaVM implements IVM {
     private _instance: MoroboxAILua.IVM;
@@ -24,7 +24,7 @@ class LuaVM implements IVM {
         call(this.luaState, "loadState", state);
     }
 
-    inputs(state: object): MoroboxAIGameSDK.IInputs {
+    inputs(state: object): Inputs {
         call(this.luaState, "inputs", state);
         return pop(this.luaState);
     }

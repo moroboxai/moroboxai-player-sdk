@@ -1,21 +1,20 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
+import type { GameHeader, BootLike, BootFunction } from "moroboxai-game-sdk";
 import { ControllerBus } from "./controller";
 import type { IInputController, IController } from "./controller";
+export type {
+    AgentLanguage,
+    LoadAgentOptions,
+    IInputController,
+    IController
+} from "./controller";
 import { Overlay } from "./overlay";
 import { GameServer } from "./server";
 import { DEFAULT_PLAYER_HEIGHT, DEFAULT_PLAYER_WIDTH } from "./constants";
 import type { IPlayer, IPlayerOptions } from "./player";
 export * from "./player";
-import { PluginContext, PluginDriver, defaultPlugin } from "./plugin";
+import { PluginContext, PluginDriver, plugins } from "./plugin";
 export * from "./plugin";
-
-export type {
-    AgentLanguage,
-    IAgentOptions,
-    IAgent,
-    IInputController,
-    IController
-} from "./controller";
 
 /**
  * Version of the game SDK.
@@ -119,7 +118,7 @@ class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
         return this._player.speed;
     }
 
-    get header(): MoroboxAIGameSDK.GameHeader | undefined {
+    get header(): GameHeader | undefined {
         return this._player.header;
     }
 
@@ -169,8 +168,11 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
     private _startLoadingDate?: Date;
     private _gameServer?: MoroboxAIGameSDK.IGameServer;
     private _exports: {
-        boot?: MoroboxAIGameSDK.IBoot;
+        boot?: BootFunction;
     } = {};
+    // Loaded header of the game
+    private _header?: GameHeader;
+    // Loaded game
     private _game?: MoroboxAIGameSDK.IGame;
     private _controllerBus: ControllerBus;
     private _resizeListener?: () => void;
@@ -198,7 +200,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
         this._config = config;
         this._options = options;
         this._pluginDriver = new PluginDriver(this, [
-            defaultPlugin(),
+            plugins.defaultPlugin(),
             ...(this._options.plugins !== undefined
                 ? this._options.plugins
                 : [])
@@ -332,7 +334,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
         return new Promise<MoroboxAIGameSDK.GameHeader>(async (resolve) => {
             const options = {
                 url: this._options.url,
-                header: this._options.header
+                header: undefined
             };
 
             await this._pluginDriver.hookReduceArg0(
@@ -353,7 +355,13 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
             return resolve(options.header);
         }).then((header) => {
             console.log("header loaded", header);
-            this._options.header = header;
+
+            // Override the boot defined in header
+            if (this.boot !== undefined) {
+                header.boot = this.boot;
+            }
+
+            this._header = header;
         });
     }
 
@@ -388,6 +396,11 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
             if (boot !== undefined) {
                 if (typeof boot === "function") {
                     this._exports.boot = boot;
+                    return resolve();
+                }
+
+                if (typeof boot === "object") {
+                    this._exports.boot = boot.boot;
                     return resolve();
                 }
 
@@ -442,7 +455,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
                 }
 
                 console.log("boot loaded");
-                this._exports.boot(this._proxy).then((game) => {
+                this._exports.boot({ player: this._proxy }).then((game) => {
                     this._game = game;
                     this._game.ticker = this._tickFromGame;
                     console.log("game booted", game);
@@ -460,21 +473,16 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
         }
     }
 
-    private _play(
-        url?: string,
-        header?: MoroboxAIGameSDK.GameHeader,
-        autoPlay?: boolean
-    ): void {
+    private _play(url?: string, autoPlay?: boolean): void {
         if (url !== undefined) {
-            // Changing the URL, or header, stops the game
+            // Changing the URL stops the game
             this.stop();
 
-            this._options.url = url;
-            this._options.header = header;
+            this._options.url = url ?? this._options.url;
 
             // Play the game if required
             if (autoPlay === true || this.autoPlay) {
-                this._play();
+                this._play(url);
             }
             return;
         }
@@ -694,12 +702,16 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
         this.play({ url: value });
     }
 
-    get header(): MoroboxAIGameSDK.GameHeader | undefined {
-        return this._options.header;
+    get boot(): BootLike | undefined {
+        return this._options.boot;
     }
 
-    set header(value: MoroboxAIGameSDK.GameHeader | undefined) {
-        this.play({ header: value });
+    set boot(val: BootLike | undefined) {
+        this._options.boot = val;
+    }
+
+    get header(): MoroboxAIGameSDK.GameHeader | undefined {
+        return this._header;
     }
 
     get autoPlay(): boolean {
@@ -730,22 +742,17 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
 
     play(): void;
     play(url: string): void;
-    play(options: {
-        url?: string;
-        header?: MoroboxAIGameSDK.GameHeader;
-        autoPlay?: boolean;
-    }): void;
+    play(options: { url: string; autoPlay?: boolean }): void;
     play(
         options?:
             | string
             | {
-                  url?: string;
-                  header?: MoroboxAIGameSDK.GameHeader;
+                  url: string;
                   autoPlay?: boolean;
               }
     ): void {
         if (typeof options === "object") {
-            this._play(options.url, options.header, options.autoPlay);
+            this._play(options.url, options.autoPlay);
             return;
         }
 
@@ -1044,16 +1051,16 @@ export class MetaPlayer implements IMetaPlayer {
         return this.masterPlayer!.url;
     }
 
-    set url(val: string) {
-        this._players.forEach((other) => (other.url = val));
+    get boot(): BootLike | undefined {
+        return this.masterPlayer!.boot;
+    }
+
+    set boot(val: BootLike | undefined) {
+        this.masterPlayer!.boot = val;
     }
 
     get header(): MoroboxAIGameSDK.GameHeader | undefined {
         return this.masterPlayer!.header;
-    }
-
-    set header(val: MoroboxAIGameSDK.GameHeader | undefined) {
-        this._players.forEach((other) => (other.header = val));
     }
 
     get autoPlay(): boolean {
@@ -1088,22 +1095,22 @@ export class MetaPlayer implements IMetaPlayer {
         options?:
             | string
             | {
-                  url?: string;
-                  header?: MoroboxAIGameSDK.GameHeader;
+                  url: string;
+                  boot?: BootLike;
                   autoPlay?: boolean;
               }
     ): void {
         var _options: {
-            url?: string;
-            header?: MoroboxAIGameSDK.GameHeader;
+            url: string;
+            boot?: BootLike;
             autoPlay?: boolean;
-        } = { url: undefined, header: undefined, autoPlay: true };
+        } = { url: this.url, boot: undefined, autoPlay: true };
         if (options === undefined) {
         } else if (typeof options === "string") {
             _options.url = options;
         } else {
             _options.url = options.url;
-            _options.header = options.header;
+            _options.boot = options.boot;
         }
 
         this._players.forEach((other) => other.play(_options));

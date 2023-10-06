@@ -1,4 +1,4 @@
-import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
+import type { Inputs } from "moroboxai-game-sdk";
 import { IVM, AGENT_FUNCTIONS } from "../_utils";
 
 class JSVM implements IVM {
@@ -24,7 +24,7 @@ class JSVM implements IVM {
         }
     }
 
-    inputs(state: object): MoroboxAIGameSDK.IInputs {
+    inputs(state: object): Inputs {
         if (this._context.inputs !== undefined) {
             return this._context.inputs(state);
         }

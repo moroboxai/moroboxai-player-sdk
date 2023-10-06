@@ -1,5 +1,5 @@
-import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
-import type { IAgentOptions, IController } from "./controller";
+import type { GameHeader, BootLike } from "moroboxai-game-sdk";
+import type { LoadAgentOptions, IController } from "./controller";
 import type { Plugin } from "./plugin";
 
 // Possible options for initializing the player
@@ -13,12 +13,11 @@ export interface IPlayerOptions {
      */
     url: string;
     /**
-     * Header of the game.
+     * Override the boot defined in the header.
      *
-     * This can be useful in development mode for passing the header
-     * from code rather than loading it from the URL above.
+     * This can be used in development mode to pass the boot from code.
      */
-    header?: MoroboxAIGameSDK.GameHeader;
+    boot?: BootLike;
     splashart?: string;
     // Player size in pixels
     width?: number;
@@ -33,7 +32,7 @@ export interface IPlayerOptions {
     // Simulated or not
     simulated?: boolean;
     // List of agents
-    agents?: Array<IAgentOptions>;
+    agents?: Array<LoadAgentOptions>;
     // List of plugins
     plugins?: Plugin[];
     onReady?: () => void;
@@ -50,15 +49,12 @@ export interface IPlayer {
     scale: number;
     // Get/Set if the player is resizable
     resizable: boolean;
-    /**
-     * Get/Set the URL of the game.
-     *
-     * Changing the URL will stop the game
-     */
-    url: string;
-    // Get/Set the game header
-    // Changing the header will stop the game
-    header: MoroboxAIGameSDK.GameHeader | undefined;
+    // Base URL of the game
+    readonly url: string;
+    // Get/Set the boot
+    boot?: BootLike;
+    // Header of the game
+    readonly header: GameHeader | undefined;
     // Get/Set weither to game should play automatically
     autoPlay: boolean;
     // Simulated or not
@@ -81,9 +77,7 @@ export interface IPlayer {
     // Play the game from URL or header
     play(options: {
         // New game URL
-        url?: string;
-        // New game header
-        header?: MoroboxAIGameSDK.GameHeader;
+        url: string;
         // Bypass the default autoPlay value
         autoPlay?: boolean;
     }): void;

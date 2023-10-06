@@ -1,13 +1,13 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
-import type { AgentLanguage, IVM } from "./vm";
+import type { Inputs } from "moroboxai-game-sdk";
 import { initVM } from "./vm";
-
+import type { AgentLanguage, IVM } from "./vm";
 export type { AgentLanguage } from "./vm";
 
 /**
- * Interface for loaded agents.
+ * Information of a loaded agent.
  */
-export interface IAgent {
+interface Agent {
     // Language of the code
     language: AgentLanguage;
     // URL of the agent
@@ -17,9 +17,9 @@ export interface IAgent {
 }
 
 /**
- * Information for loading agents.
+ * Options for loading an agent.
  */
-export type IAgentOptions = {
+export type LoadAgentOptions = {
     // Language of the code
     language?: AgentLanguage;
 } & (
@@ -40,19 +40,16 @@ export type IAgentOptions = {
  */
 export interface IInputController {
     // Pressed inputs
-    inputs: MoroboxAIGameSDK.IInputs;
+    inputs: Inputs;
 }
 
 export interface IController extends MoroboxAIGameSDK.IController {
-    // Loaded agent
-    readonly agent?: IAgent;
-
     /**
      * Get inputs base on game state.
      * @param {object} state - game state
-     * @returns {IInputs} Inputs
+     * @returns {Inputs} Inputs
      */
-    inputs(state: object): MoroboxAIGameSDK.IInputs;
+    inputs(state: object): Inputs;
 
     saveState(): object;
 
@@ -60,9 +57,9 @@ export interface IController extends MoroboxAIGameSDK.IController {
 
     /**
      * Load an agent to this controller.
-     * @param {IAgentOptions} options - options for loading
+     * @param {LoadAgentOptions} options - options for loading
      */
-    loadAgent(options: IAgentOptions): Promise<void>;
+    loadAgent(options: LoadAgentOptions): Promise<void>;
 
     /**
      * Unload the agent.
@@ -72,7 +69,7 @@ export interface IController extends MoroboxAIGameSDK.IController {
 
 class AgentController implements IController {
     // Loaded agent
-    private _agent?: IAgent;
+    private _agent?: Agent;
 
     // VM running the code for the agent
     private _vm?: IVM;
@@ -100,11 +97,7 @@ class AgentController implements IController {
         return false;
     }
 
-    get agent(): IAgent | undefined {
-        return this._agent;
-    }
-
-    loadAgent(options: IAgentOptions): Promise<void> {
+    loadAgent(options: LoadAgentOptions): Promise<void> {
         return new Promise<void>((resolve) => {
             function typeFromUrl(url: string): AgentLanguage {
                 if (url.endsWith(".lua")) {
@@ -159,7 +152,7 @@ class AgentController implements IController {
         this._vm = undefined;
     }
 
-    inputs(state: object): MoroboxAIGameSDK.IInputs {
+    inputs(state: object): Inputs {
         if (this._vm !== undefined) {
             try {
                 return this._vm.inputs(state);
@@ -242,17 +235,13 @@ class Controller implements IController {
         return this.isBound && !this.isAgent;
     }
 
-    get agent(): IAgent | undefined {
-        return this._agentController.agent;
-    }
-
     constructor(id: number, inputController?: IInputController) {
         this._id = id;
         this._inputController = inputController;
         this._agentController = new AgentController();
     }
 
-    inputs(state: object): MoroboxAIGameSDK.IInputs {
+    inputs(state: object): Inputs {
         if (this._agentController.isBound) {
             return this._agentController.inputs(state);
         }
@@ -264,7 +253,7 @@ class Controller implements IController {
         return {};
     }
 
-    loadAgent(options: IAgentOptions): Promise<void> {
+    loadAgent(options: LoadAgentOptions): Promise<void> {
         return this._agentController.loadAgent(options);
     }
 
@@ -311,7 +300,7 @@ export class ControllerBus {
         return this._controllers.get(controllerId);
     }
 
-    inputs(state: object): Array<MoroboxAIGameSDK.IInputs> {
+    inputs(state: object): Array<Inputs> {
         return [
             this._controllers.get(0)!.inputs(state),
             this._controllers.get(1)!.inputs(state)
