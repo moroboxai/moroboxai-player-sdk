@@ -1,4 +1,4 @@
-import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
+import type { Controller as ControllerState } from "moroboxai-game-sdk";
 import type { Inputs } from "moroboxai-game-sdk";
 import { initVM } from "./vm";
 import type { AgentLanguage, IVM } from "./vm";
@@ -43,9 +43,15 @@ export interface IInputController {
     inputs: Inputs;
 }
 
-export interface IController extends MoroboxAIGameSDK.IController {
+export interface IController {
+    readonly id: number;
+    readonly label: string;
+    readonly isBound: boolean;
+    readonly isAgent: boolean;
+    readonly isPlayer: boolean;
+
     /**
-     * Get inputs base on game state.
+     * Get inputs based on game state.
      * @param {object} state - game state
      * @returns {Inputs} Inputs
      */
@@ -274,6 +280,7 @@ class Controller implements IController {
 export class ControllerBus {
     // Connected controllers
     private _controllers: Map<number, IController> = new Map();
+    private _controllersArray: IController[];
 
     get ids(): number[] {
         return [...this._controllers.keys()];
@@ -283,12 +290,13 @@ export class ControllerBus {
         return this._controllers;
     }
 
-    constructor(options: {
-        player: MoroboxAIGameSDK.IPlayer;
-        inputController: () => IInputController;
-    }) {
-        this._controllers.set(0, new Controller(0, options.inputController()));
-        this._controllers.set(1, new Controller(1));
+    constructor(options: { inputController: () => IInputController }) {
+        this._controllersArray = [
+            new Controller(0, options.inputController()),
+            new Controller(1)
+        ];
+        this._controllers.set(0, this._controllersArray[0]);
+        this._controllers.set(1, this._controllersArray[1]);
     }
 
     /**
@@ -300,11 +308,14 @@ export class ControllerBus {
         return this._controllers.get(controllerId);
     }
 
-    inputs(state: object): Array<Inputs> {
-        return [
-            this._controllers.get(0)!.inputs(state),
-            this._controllers.get(1)!.inputs(state)
-        ];
+    inputs(state: object): Array<ControllerState> {
+        return this._controllersArray.map((controller) => ({
+            label: controller.label,
+            isBound: controller.isBound,
+            isPlayer: controller.isPlayer,
+            isAgent: controller.isAgent,
+            inputs: controller.inputs(state)
+        }));
     }
 
     saveState(): Array<object> {

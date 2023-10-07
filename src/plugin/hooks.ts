@@ -1,19 +1,40 @@
-import type { IGameServer, GameHeader } from "moroboxai-game-sdk";
+import type {
+    IGameServer,
+    GameHeader,
+    BootFunction,
+    BootLike,
+    IGame,
+    IVM
+} from "moroboxai-game-sdk";
+import type { IPlayer } from "../player";
 
 export interface PluginContext {
-    gameServer: IGameServer;
+    player: IPlayer;
+    vm: IVM;
 }
 
 // Define hooks
 export interface LoadHeaderOptions {
     // URL of the header
     url: string;
+    // Game server
+    gameServer: IGameServer;
     // Header loaded by the previous plugin
     header?: GameHeader;
 }
 
+export interface LoadBootOptions {
+    // Game server
+    gameServer: IGameServer;
+    // Context loaded by the previous plugin
+    context?: any;
+    // Header loaded by the previous plugin
+    boot?: BootLike;
+}
+
 export interface FunctionPluginHooks {
     loadHeader: (this: PluginContext, options: LoadHeaderOptions) => GameHeader;
+    loadBoot: (this: PluginContext, options: LoadBootOptions) => BootLike;
 }
 
 export type SyncPluginHooks = "test";

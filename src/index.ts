@@ -1,7 +1,7 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
-import type { GameHeader, BootLike, BootFunction } from "moroboxai-game-sdk";
+import type { GameHeader, BootLike } from "moroboxai-game-sdk";
 import { ControllerBus } from "./controller";
-import type { IInputController, IController } from "./controller";
+import type { IController } from "./controller";
 export type {
     AgentLanguage,
     LoadAgentOptions,
@@ -9,12 +9,12 @@ export type {
     IController
 } from "./controller";
 import { Overlay } from "./overlay";
-import { GameServer } from "./server";
 import { DEFAULT_PLAYER_HEIGHT, DEFAULT_PLAYER_WIDTH } from "./constants";
-import type { IPlayer, IPlayerOptions } from "./player";
+import type { ISDKConfig, IPlayer, PlayerOptions } from "./player";
 export * from "./player";
 import { PluginContext, PluginDriver, plugins } from "./plugin";
 export * from "./plugin";
+import { LoadGameTask } from "./utils/loadGame";
 
 /**
  * Version of the game SDK.
@@ -29,38 +29,6 @@ export const VERSION: string = "__VERSION__";
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
 const PHYSICS_TIMESTEP = 0.01;
-
-export interface ISDKConfig {
-    // Create a controller listening for player inputs
-    inputController: () => IInputController;
-    // Create a file server for a given URL
-    fileServer: (baseUrl: string) => MoroboxAIGameSDK.IFileServer;
-    // Create a zip server for a given URL
-    zipServer: (zipUrl: string) => MoroboxAIGameSDK.IFileServer;
-}
-
-/**
- * Create a file server base on URL ending.
- * @param {string} baseUrl - Base URL
- * @returns {MoroboxAIGameSDK.IFileServer} A file server
- */
-function createFileServer(
-    sdkConfig: ISDKConfig,
-    baseUrl: string
-): MoroboxAIGameSDK.IFileServer {
-    // Point to zip file
-    if (baseUrl.endsWith(".zip")) {
-        return sdkConfig.zipServer(baseUrl);
-    }
-
-    // Point to header.yml so take parent URL
-    if (baseUrl.endsWith(".yaml") || baseUrl.endsWith(".yml")) {
-        const pos = baseUrl.lastIndexOf("/");
-        baseUrl = pos < 0 ? "" : baseUrl.substring(0, pos);
-    }
-
-    return sdkConfig.fileServer(baseUrl);
-}
 
 export interface IMetaPlayer extends IPlayer {
     // Add a player to the list
@@ -79,81 +47,9 @@ enum EPlayerState {
     Pause
 }
 
-class PlayerProxy implements MoroboxAIGameSDK.IPlayer {
-    private _player: MoroboxAIGameSDK.IPlayer;
-
-    constructor(player: MoroboxAIGameSDK.IPlayer) {
-        this._player = player;
-    }
-
-    get root(): HTMLElement {
-        return this._player.root;
-    }
-
-    get gameServer(): MoroboxAIGameSDK.IGameServer {
-        return this._player.gameServer;
-    }
-
-    get width(): number {
-        return this._player.width;
-    }
-
-    set width(value: number) {
-        this.resize({ width: value });
-    }
-
-    get height(): number {
-        return this._player.height;
-    }
-
-    set height(value: number) {
-        this.resize({ height: value });
-    }
-
-    get resizable(): boolean {
-        return this._player.resizable;
-    }
-
-    get speed(): number {
-        return this._player.speed;
-    }
-
-    get header(): GameHeader | undefined {
-        return this._player.header;
-    }
-
-    get frame(): number {
-        return this._player.frame;
-    }
-
-    get time(): number {
-        return this._player.time;
-    }
-
-    resize(
-        width: { width?: number; height?: number } | number,
-        height?: number
-    ): void {
-        if (!this.resizable) return;
-
-        if (typeof width === "object") {
-            this._player.resize(width);
-        } else {
-            this._player.resize(width, height!);
-        }
-    }
-
-    getController(
-        controllerId: number
-    ): MoroboxAIGameSDK.IController | undefined {
-        return this._player.getController(controllerId);
-    }
-}
-
 // Player instance for controlling the game
-class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
-    private _proxy: PlayerProxy;
-    private _config: ISDKConfig;
+class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
+    private _sdkConfig: ISDKConfig;
     private _state: EPlayerState = EPlayerState.Idle;
     private _ui: {
         element?: HTMLElement;
@@ -161,15 +57,14 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
         base?: HTMLElement;
         overlay?: Overlay;
     } = {};
-    private _options: IPlayerOptions;
+    private _options: PlayerOptions;
     private _pluginDriver: PluginDriver;
+    // Token passed to promises and used for cancel
     private _readyCallback?: () => void;
-    private _playTask?: Promise<void>;
+    private _loadGameTask?: LoadGameTask;
     private _startLoadingDate?: Date;
+    // Game server
     private _gameServer?: MoroboxAIGameSDK.IGameServer;
-    private _exports: {
-        boot?: BootFunction;
-    } = {};
     // Loaded header of the game
     private _header?: GameHeader;
     // Loaded game
@@ -183,30 +78,22 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
     // Time counter for player and game
     private _time: number = 0;
 
-    get isLoading(): boolean {
-        return this._state == EPlayerState.Loading;
-    }
-
-    get isPlaying(): boolean {
-        return this._state == EPlayerState.Playing;
-    }
-
-    get isPaused(): boolean {
-        return this._state == EPlayerState.Pause;
-    }
-
-    constructor(config: ISDKConfig, element: Element, options: IPlayerOptions) {
-        this._proxy = new PlayerProxy(this);
-        this._config = config;
+    constructor(config: ISDKConfig, element: Element, options: PlayerOptions) {
+        this._sdkConfig = config;
         this._options = options;
-        this._pluginDriver = new PluginDriver(this, [
-            plugins.defaultPlugin(),
-            ...(this._options.plugins !== undefined
-                ? this._options.plugins
-                : [])
-        ]);
+        this._pluginDriver = new PluginDriver(
+            {
+                player: this,
+                vm: this
+            },
+            [
+                plugins.defaultPlugin(),
+                ...(this._options.plugins !== undefined
+                    ? this._options.plugins
+                    : [])
+            ]
+        );
         this._controllerBus = new ControllerBus({
-            player: this,
             inputController: config.inputController
         });
         if (options.agents !== undefined) {
@@ -240,6 +127,18 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
                 this.play();
             }
         }
+    }
+
+    get isLoading(): boolean {
+        return this._state == EPlayerState.Loading;
+    }
+
+    get isPlaying(): boolean {
+        return this._state == EPlayerState.Playing;
+    }
+
+    get isPaused(): boolean {
+        return this._state == EPlayerState.Pause;
     }
 
     private _attach() {
@@ -295,179 +194,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
         window.addEventListener("resize", this._resizeListener);
     }
 
-    // This task is for loading the game
-    private _initGame(): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            if (this._ui.element === undefined) {
-                return reject("element is not an HTMLElement");
-            }
-
-            console.log("start game server...");
-            return this._startGameServer().then(() => {
-                console.log("game server started");
-                return this._loadHeader().then(() => {
-                    return this._loadGame().then(resolve);
-                });
-            });
-        });
-    }
-
-    // This task is for starting the game server based on game URL
-    private _startGameServer(): Promise<void> {
-        return new Promise<void>((resolve) => {
-            // We don't know the game URL
-            if (this._options.url === undefined) {
-                return resolve();
-            }
-
-            const fileServer = createFileServer(
-                this._config,
-                this._options.url as string
-            );
-            this._gameServer = new GameServer(fileServer);
-            this._gameServer.ready(resolve);
-        });
-    }
-
-    // This task is for loading the header.yml file
-    private _loadHeader(): Promise<void> {
-        return new Promise<MoroboxAIGameSDK.GameHeader>(async (resolve) => {
-            const options = {
-                url: this._options.url,
-                header: undefined
-            };
-
-            await this._pluginDriver.hookReduceArg0(
-                "loadHeader",
-                [options],
-                (options, result, plugin) => {
-                    if (result !== null) {
-                        options.header = result;
-                    }
-                    return options;
-                }
-            );
-
-            if (options.header === undefined) {
-                throw "could not load header";
-            }
-
-            return resolve(options.header);
-        }).then((header) => {
-            console.log("header loaded", header);
-
-            // Override the boot defined in header
-            if (this.boot !== undefined) {
-                header.boot = this.boot;
-            }
-
-            this._header = header;
-        });
-    }
-
-    private _getBootFunction(data: string) {
-        let _exports: any = {};
-        let _module = { exports: { boot: undefined } };
-        const result = new Function("exports", "module", "define", data)(
-            _exports,
-            _module,
-            undefined
-        );
-        if (_exports.boot !== undefined) {
-            this._exports.boot = _exports.boot;
-            return;
-        }
-
-        if (_module.exports.boot !== undefined) {
-            this._exports.boot = _module.exports.boot;
-            return;
-        }
-
-        if (result === "object" && result.boot !== undefined) {
-            this._exports.boot = result.boot;
-            return;
-        }
-    }
-
-    private _loadBoot(): Promise<void> {
-        console.log("load boot...");
-        return new Promise<void>((resolve, reject) => {
-            const boot = this.header!.boot;
-            if (boot !== undefined) {
-                if (typeof boot === "function") {
-                    this._exports.boot = boot;
-                    return resolve();
-                }
-
-                if (typeof boot === "object") {
-                    this._exports.boot = boot.boot;
-                    return resolve();
-                }
-
-                if (!boot.endsWith(".js") && !boot.endsWith(".ts")) {
-                    // boot is not a js file, maybe a module
-                    const m = (window as any)[boot];
-                    if (m === undefined || m.boot === undefined) {
-                        return reject("invalid boot module");
-                    }
-
-                    this._exports.boot = m.boot;
-
-                    return resolve();
-                }
-
-                if (boot.startsWith("http")) {
-                    // direct URL
-                    return fetch(boot)
-                        .then((res) => {
-                            if (!res.ok) {
-                                throw new Error(res.statusText);
-                            }
-
-                            return res.text();
-                        })
-                        .then((data) => {
-                            this._getBootFunction(data);
-
-                            return resolve();
-                        });
-                }
-
-                // load boot from a file with the game server
-                if (this._gameServer !== undefined) {
-                    return this._gameServer.get(boot).then((data) => {
-                        this._getBootFunction(data);
-
-                        return resolve();
-                    });
-                }
-            }
-
-            return reject("failed to load boot");
-        });
-    }
-
-    private _loadGame(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this._loadBoot().then(() => {
-                if (this._exports.boot === undefined) {
-                    return reject("missing boot");
-                }
-
-                console.log("boot loaded");
-                this._exports.boot({ player: this._proxy }).then((game) => {
-                    this._game = game;
-                    this._game.ticker = this._tickFromGame;
-                    console.log("game booted", game);
-
-                    return resolve();
-                });
-            });
-        });
-    }
-
     private _notifyReady(): void {
-        this._playTask = undefined;
         if (this._readyCallback !== undefined) {
             this._readyCallback();
         }
@@ -482,7 +209,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
 
             // Play the game if required
             if (autoPlay === true || this.autoPlay) {
-                this._play(url);
+                this._play();
             }
             return;
         }
@@ -502,7 +229,11 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
             return;
         }
 
-        if (this._state !== EPlayerState.Idle) return;
+        // Can't call play while there is already a game playing
+        if (this._state !== EPlayerState.Idle) {
+            console.error("a game is already playing, call stop before");
+            return;
+        }
 
         this._state = EPlayerState.Loading;
         this._startLoadingDate = new Date();
@@ -511,14 +242,30 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
             this._ui.overlay.loading();
         }
 
-        this._playTask = this._initGame()
-            .then(() => {
+        // Should never happen
+        if (this._ui.element === undefined) {
+            throw "no root HTML element";
+        }
+
+        // Create a new task for loading the game
+        this._loadGameTask = new LoadGameTask({
+            sdkConfig: this._sdkConfig,
+            url: this._options.url,
+            pluginDriver: this._pluginDriver,
+            vm: this,
+            callback: (task) => {
+                // Check if an error occurred
+                if (task.error !== undefined) {
+                    console.log(task.error);
+                }
+
+                this._game = task.game!;
+                this._game.ticker = this._tickFromGame;
+                this._gameServer = task.gameServer;
                 this._ready();
-            })
-            .catch((reason) => {
-                console.error(reason);
-                this._ready();
-            });
+            }
+        });
+        this._loadGameTask.loadGame();
     }
 
     _onMouseEnter() {
@@ -539,7 +286,16 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
         }
     }
 
-    // IPlayer interface
+    // PluginContext interface
+    get player(): IPlayer {
+        return this;
+    }
+
+    get vm(): MoroboxAIGameSDK.IVM {
+        return this;
+    }
+
+    // IVM interface
     get root(): HTMLElement {
         return this._ui.base as HTMLElement;
     }
@@ -635,7 +391,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
         this._notifyReady();
     }
 
-    controller(id: number): IController | undefined {
+    getController(id: number): IController | undefined {
         return this._controllerBus.get(id);
     }
 
@@ -877,17 +633,13 @@ class Player implements IPlayer, MoroboxAIGameSDK.IPlayer, PluginContext {
         const state = this._game!.getStateForAgent();
         this._game!.tick(this._controllerBus.inputs(state), delta, render);
     }
-
-    getController(controllerId: number): IController | undefined {
-        return this._controllerBus.get(controllerId);
-    }
 }
 
 /**
  * Gets default configured player options.
- * @returns {IPlayerOptions} Default options
+ * @returns {PlayerOptions} Default options
  */
-export function defaultOptions(): IPlayerOptions {
+export function defaultOptions(): PlayerOptions {
     return {
         url: "",
         resizable: true,
@@ -905,21 +657,21 @@ function isHTMLElement(_: Element | HTMLElement): _ is HTMLElement {
 }
 
 function isElementArray(
-    _: IPlayerOptions | Element | Element[] | HTMLCollectionOf<Element>
+    _: PlayerOptions | Element | Element[] | HTMLCollectionOf<Element>
 ): _ is Element[] | HTMLCollectionOf<Element> {
     return "length" in _;
 }
 
 function isPlayerOptions(
-    _?: IPlayerOptions | Element | Element[] | HTMLCollectionOf<Element>
-): _ is IPlayerOptions {
+    _?: PlayerOptions | Element | Element[] | HTMLCollectionOf<Element>
+): _ is PlayerOptions {
     return _ !== undefined && !isElementArray(_) && !("className" in _);
 }
 
 function createPlayer(
     config: ISDKConfig,
     element: Element,
-    options: IPlayerOptions
+    options: PlayerOptions
 ): IPlayer {
     return new Player(config, element, options);
 }
@@ -927,7 +679,7 @@ function createPlayer(
 export function init(config: ISDKConfig): IPlayer | IPlayer[];
 export function init(
     config: ISDKConfig,
-    options: IPlayerOptions
+    options: PlayerOptions
 ): IPlayer | IPlayer[];
 export function init(config: ISDKConfig, element: Element): IPlayer;
 export function init(
@@ -937,32 +689,32 @@ export function init(
 export function init(
     config: ISDKConfig,
     element: Element,
-    options: IPlayerOptions
+    options: PlayerOptions
 ): IPlayer;
 export function init(
     config: ISDKConfig,
     element: Element[] | HTMLCollectionOf<Element>,
-    options: IPlayerOptions
+    options: PlayerOptions
 ): IPlayer[];
 export function init(
     config: ISDKConfig,
-    element?: IPlayerOptions | Element | Element[] | HTMLCollectionOf<Element>,
-    options?: IPlayerOptions
+    element?: PlayerOptions | Element | Element[] | HTMLCollectionOf<Element>,
+    options?: PlayerOptions
 ): IPlayer | IPlayer[];
 
 /**
  * Initialize player on one or multiple HTML elements.
  * @param {HTMLElement} element Element to wrap
- * @param {IPlayerOptions} options Options for initializing the player
+ * @param {PlayerOptions} options Options for initializing the player
  */
 export function init(
     config: ISDKConfig,
-    element?: IPlayerOptions | Element | Element[] | HTMLCollectionOf<Element>,
-    options?: IPlayerOptions
+    element?: PlayerOptions | Element | Element[] | HTMLCollectionOf<Element>,
+    options?: PlayerOptions
 ): IPlayer | IPlayer[] {
     let _elements: undefined | Element | Element[] | HTMLCollectionOf<Element> =
         undefined;
-    let _options: IPlayerOptions = defaultOptions();
+    let _options: PlayerOptions = defaultOptions();
 
     if (isPlayerOptions(element)) {
         options = element;
@@ -1146,10 +898,6 @@ export class MetaPlayer implements IMetaPlayer {
         });
     }
 
-    getController(controllerId: number): IController | undefined {
-        return undefined;
-    }
-
     remove(): void {}
 
     resize(
@@ -1193,5 +941,9 @@ export class MetaPlayer implements IMetaPlayer {
         delete this._players[index];
         other.ticker = undefined;
         other.simulated = false;
+    }
+
+    getController(controllerId: number): IController | undefined {
+        return this.masterPlayer!.getController(controllerId);
     }
 }

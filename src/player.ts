@@ -1,9 +1,22 @@
-import type { GameHeader, BootLike } from "moroboxai-game-sdk";
-import type { LoadAgentOptions, IController } from "./controller";
+import type { GameHeader, BootLike, IFileServer } from "moroboxai-game-sdk";
+import type {
+    LoadAgentOptions,
+    IController,
+    IInputController
+} from "./controller";
 import type { Plugin } from "./plugin";
 
+export interface ISDKConfig {
+    // Create a controller listening for player inputs
+    inputController: () => IInputController;
+    // Create a file server for a given URL
+    fileServer: (baseUrl: string) => IFileServer;
+    // Create a zip server for a given URL
+    zipServer: (zipUrl: string) => IFileServer;
+}
+
 // Possible options for initializing the player
-export interface IPlayerOptions {
+export interface PlayerOptions {
     element?: Element | Element[] | HTMLCollectionOf<Element>;
     /**
      * Base URL of the game or URL of the header file.
