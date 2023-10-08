@@ -65,8 +65,6 @@ class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
     private _startLoadingDate?: Date;
     // Game server
     private _gameServer?: MoroboxAIGameSDK.IGameServer;
-    // Loaded header of the game
-    private _header?: GameHeader;
     // Loaded game
     private _game?: MoroboxAIGameSDK.IGame;
     private _controllerBus: ControllerBus;
@@ -251,6 +249,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         this._loadGameTask = new LoadGameTask({
             sdkConfig: this._sdkConfig,
             url: this._options.url,
+            boot: this._options.boot,
             pluginDriver: this._pluginDriver,
             vm: this,
             callback: (task) => {
@@ -301,7 +300,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
     }
 
     get gameServer(): MoroboxAIGameSDK.IGameServer {
-        return this._gameServer as MoroboxAIGameSDK.IGameServer;
+        return this._loadGameTask?.gameServer! as MoroboxAIGameSDK.IGameServer;
     }
 
     resize(width: number, height: number): void;
@@ -467,7 +466,7 @@ class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
     }
 
     get header(): MoroboxAIGameSDK.GameHeader | undefined {
-        return this._header;
+        return this._loadGameTask?.header;
     }
 
     get autoPlay(): boolean {

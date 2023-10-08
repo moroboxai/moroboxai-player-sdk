@@ -3,7 +3,8 @@ import type {
     IGameServer,
     IGame,
     GameHeader,
-    BootFunction
+    BootFunction,
+    BootLike
 } from "moroboxai-game-sdk";
 import { PluginDriver } from "../plugin";
 import type { LoadBootOptions, LoadHeaderOptions } from "../plugin";
@@ -16,6 +17,8 @@ import { startGameServer } from "./startGameServer";
 export interface LoadGameOptions {
     // URL of the game
     url: string;
+    // Override the boot defined in header
+    boot?: BootLike;
     // Config of the SDK
     sdkConfig: ISDKConfig;
     // Plugins
@@ -93,13 +96,14 @@ export class LoadGameTask {
             console.log("game header loaded", this.header);
 
             // Boot
-            if (this.header.boot === undefined) {
+            const boot = this.options.boot ?? this.header.boot;
+            if (boot === undefined) {
                 throw "missing boot parameter in game header";
             }
 
             console.log("load game boot...");
             const loadBootOptions: LoadBootOptions = {
-                boot: this.header.boot,
+                boot,
                 gameServer: this.gameServer
             };
             const loadBootResult =
