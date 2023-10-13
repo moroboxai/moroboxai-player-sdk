@@ -15,12 +15,15 @@
         "lib": ["es5", "es6", "dom"],
         "paths": {
             "fengari-web": ["typings/fengari"],
-            "*": [
-                "node_modules/*"
-            ]
-        }
+            "*": ["node_modules/*"],
+            "@/*": ["./src/*"]
+        },
+        "plugins": [
+            {
+                "transform": "typescript-transform-paths",
+                "afterDeclarations": true
+            }
+        ]
     },
-    "include": [
-        "src/**/*"
-    ]
+    "include": ["src/**/*"]
 }

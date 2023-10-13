@@ -6,9 +6,9 @@ import type {
     BootFunction,
     BootLike
 } from "moroboxai-game-sdk";
-import { PluginDriver } from "../plugin";
-import type { LoadBootOptions, LoadHeaderOptions } from "../plugin";
-import type { ISDKConfig } from "../player";
+import { PluginDriver } from "@/plugin";
+import type { LoadBootOptions, LoadHeaderOptions } from "@/plugin";
+import type { ISDKConfig } from "@/player";
 import { startGameServer } from "./startGameServer";
 
 /**
@@ -25,6 +25,8 @@ export interface LoadGameOptions {
     pluginDriver: PluginDriver;
     // VM for the game
     vm: IVM;
+    // Called when the header has been loaded
+    onHeaderLoaded: (header: GameHeader) => void;
     // Called when the task completes
     callback: (task: LoadGameTask) => void;
 }
@@ -129,6 +131,8 @@ export class LoadGameTask {
 
             this.context = loadBootResult.context;
             this.boot = loadBootResult.boot;
+
+            this.options.onHeaderLoaded(this.header);
 
             // Game
             console.log("boot the game...");

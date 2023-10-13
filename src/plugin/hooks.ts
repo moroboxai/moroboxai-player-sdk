@@ -1,12 +1,10 @@
 import type {
     IGameServer,
     GameHeader,
-    BootFunction,
     BootLike,
-    IGame,
     IVM
 } from "moroboxai-game-sdk";
-import type { IPlayer } from "../player";
+import type { IPlayer } from "@/player";
 
 export interface PluginContext {
     player: IPlayer;

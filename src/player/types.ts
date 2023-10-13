@@ -3,8 +3,8 @@ import type {
     LoadAgentOptions,
     IController,
     IInputController
-} from "./controller";
-import type { Plugin } from "./plugin";
+} from "@/controller";
+import type { Plugin } from "@/plugin";
 
 export interface ISDKConfig {
     // Create a controller listening for player inputs
@@ -32,9 +32,9 @@ export interface PlayerOptions {
      */
     boot?: BootLike;
     splashart?: string;
-    // Player size in pixels
-    width?: number;
-    height?: number;
+    // Player size
+    width?: number | string;
+    height?: number | string;
     // Scale of the player based on native size of the game
     scale?: number;
     resizable?: boolean;
@@ -62,6 +62,14 @@ export interface IPlayer {
     scale: number;
     // Get/Set if the player is resizable
     resizable: boolean;
+    // Native width of the game
+    readonly gameWidth?: number;
+    // Native height of the game
+    readonly gameHeight?: number;
+    // Scale of the game
+    readonly gameScale?: number;
+    // Aspect ratio of the game
+    readonly gameAspectRatio?: string;
     // Base URL of the game
     readonly url: string;
     // Get/Set the boot
@@ -133,4 +141,12 @@ export interface IPlayer {
     // Resize the player
     resize(options: { width?: number; height?: number }): void;
     resize(width: number, height: number): void;
+}
+
+export interface IMetaPlayer extends IPlayer {
+    // Add a player to the list
+    addPlayer(other: IPlayer): void;
+
+    // Remove a player from the list
+    removePlayer(other: IPlayer): void;
 }

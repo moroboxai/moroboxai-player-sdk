@@ -1,6 +1,6 @@
 import type { IGameServer, IFileServer } from "moroboxai-game-sdk";
-import type { ISDKConfig } from "../player";
-import { GameServer } from "../server";
+import type { ISDKConfig } from "@/player";
+import { GameServer } from "@/server";
 
 /**
  * Create a file server base on URL ending.

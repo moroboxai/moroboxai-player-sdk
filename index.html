@@ -1,28 +1,38 @@
 <html>
     <head>
         <title>MoroboxAIPlayerSDK Sample</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+            integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
+            crossorigin="anonymous"
+        />
     </head>
 
     <body class="vertical">
-        <div class="horizontal">
-            <div id="player"></div>
-            <div id="editor"></div>
-        </div>
-        <div class="info horizontal">
-            <button id="attach-player"></button>
-            <button id="attach-editor"></button>
-        </div>
-        <div class="info">
-            <div>moroboxai-lua v<span id="moroboxai-lua-version"></span></div>
-            <div>
-                moroboxai-game-sdk v<span
-                    id="moroboxai-game-sdk-version"
-                ></span>
+        <div class="container">
+            <div class="row justify-content-center align-items-center">
+                <div class="col-3"><div id="player"></div></div>
+                <div class="col-auto"><div id="editor"></div></div>
             </div>
-            <div>
-                moroboxai-editor-web v<span
-                    id="moroboxai-editor-web-version"
-                ></span>
+            <div class="row justify-content-center">
+                <div class="col-auto">
+                    <button id="attach-player"></button>
+                    <button id="attach-editor"></button>
+                </div>
+            </div>
+            <div class="row justify-content-center">
+                <div class="col-auto info">
+                    moroboxai-lua v<span id="moroboxai-lua-version"></span
+                    ><br />
+                    moroboxai-game-sdk v<span
+                        id="moroboxai-game-sdk-version"
+                    ></span
+                    ><br />
+                    moroboxai-editor-web v<span
+                        id="moroboxai-editor-web-version"
+                    ></span>
+                </div>
             </div>
         </div>
     </body>
@@ -59,6 +69,7 @@
                     // Options for the player
                     {
                         url: "https://raw.githubusercontent.com/moroboxai/create-moroboxai-game/master/examples/canvas2d-rgb/header-js.yml",
+                        width: "100%",
                         resizable: true,
                         autoPlay: true,
                         scale: 1,
@@ -135,27 +146,17 @@
             justify-content: center;
         }
 
-        .horizontal {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: center;
-        }
-
         #player {
             background-color: black;
             background-size: cover;
-            margin-left: 10em;
-            margin-right: 2em;
         }
 
         .info {
-            margin-top: 2em;
             text-align: center;
         }
 
-        .info button ~ button {
-            margin-left: 1em;
+        .row + .row {
+            margin-top: 1em;
         }
     </style>
 </html>

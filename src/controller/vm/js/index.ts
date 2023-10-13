@@ -1,5 +1,5 @@
 import type { Inputs } from "moroboxai-game-sdk";
-import { IVM, AGENT_FUNCTIONS } from "../_utils";
+import { IVM, AGENT_FUNCTIONS } from "@/controller/vm/_utils";
 
 class JSVM implements IVM {
     private _fun: Function;

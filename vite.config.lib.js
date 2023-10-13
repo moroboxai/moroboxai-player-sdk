@@ -1,10 +1,10 @@
 import { defineConfig } from "vite";
-import {version} from "./package.json";
-const { resolve } = require("path");
+import { version } from "./package.json";
+import path, { resolve } from "path";
 
 export default defineConfig({
     define: {
-        "__VERSION__": version
+        __VERSION__: version
     },
     build: {
         outDir: resolve(__dirname, "lib"),
@@ -22,6 +22,11 @@ export default defineConfig({
                         return `umd/moroboxai-player-sdk.min.js`;
                 }
             }
+        }
+    },
+    resolve: {
+        alias: {
+            "@": path.resolve(__dirname, "./src")
         }
     }
 });

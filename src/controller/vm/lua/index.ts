@@ -1,7 +1,7 @@
 import type { Inputs } from "moroboxai-game-sdk";
 import * as MoroboxAILua from "moroboxai-lua";
 import { pop, call } from "moroboxai-lua";
-import { IVM } from "../_utils";
+import { IVM } from "@/controller/vm/_utils";
 import { lua_State } from "fengari-web";
 
 class LuaVM implements IVM {

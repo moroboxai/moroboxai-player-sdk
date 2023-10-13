@@ -10,7 +10,7 @@
     "types": "./lib/index.d.ts",
     "scripts": {
         "dev": "vite",
-        "build": "vite build --config vite.config.lib.js && tsc --emitDeclarationOnly",
+        "build": "vite build --config vite.config.lib.js && tspc --emitDeclarationOnly",
         "build:vite": "vite build",
         "preview": "vite preview",
         "prepublish": "npm run build"
@@ -26,16 +26,18 @@
     },
     "homepage": "https://github.com/moroboxai/moroboxai-player-sdk#readme",
     "dependencies": {
+        "fengari-web": "^0.1.4",
         "moroboxai-game-sdk": "^0.1.0-alpha.35",
         "moroboxai-lua": "^0.1.0-alpha.4",
-        "fengari-web": "^0.1.4",
         "yaml": "^2.3.2"
     },
     "devDependencies": {
-        "moroboxai-editor-web": "^0.1.1-alpha.6",
         "@types/node": "^20.6.2",
+        "moroboxai-editor-web": "^0.1.1-alpha.6",
         "path": "^0.12.7",
+        "ts-patch": "^3.0.2",
         "typescript": "^5.2.2",
+        "typescript-transform-paths": "^3.4.6",
         "vite": "^4.4.9"
     }
 }

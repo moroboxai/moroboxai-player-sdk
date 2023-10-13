@@ -4,7 +4,7 @@ import {
     Plugin,
     PluginContext
 } from "./hooks";
-import { getOrCreate } from "../utils/getOrCreate";
+import { getOrCreate } from "@/utils/getOrCreate";
 
 /**
  * Get the type of the first argument in a function.
