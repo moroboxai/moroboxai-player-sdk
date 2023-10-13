@@ -237,7 +237,6 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             vm: this,
             onHeaderLoaded: (header) => {
                 this._header = header;
-                this.resize();
             },
             callback: (task) => {
                 // Check if an error occurred
@@ -245,6 +244,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
                     console.log(task.error);
                 }
 
+                this.resize();
                 this._game = task.game!;
                 this._game.ticker = this._tickFromGame;
                 this._gameServer = task.gameServer;
