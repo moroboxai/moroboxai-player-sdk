@@ -338,11 +338,17 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
     }
 
     resize(): void;
-    resize(width: number, height: number): void;
-    resize(options: { width?: number; height?: number }): void;
+    resize(width: number | string, height: number | string): void;
+    resize(options: {
+        width?: number | string;
+        height?: number | string;
+    }): void;
     resize(
-        width?: { width?: number; height?: number } | number,
-        height?: number
+        width?:
+            | { width?: number | string; height?: number | string }
+            | number
+            | string,
+        height?: number | string
     ) {
         if (width !== undefined) {
             if (typeof width === "object") {

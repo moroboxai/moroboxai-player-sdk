@@ -182,8 +182,11 @@ export class MetaPlayer implements IMetaPlayer {
     remove(): void {}
 
     resize(
-        width: { width?: number; height?: number } | number,
-        height?: number
+        width:
+            | { width?: number | string; height?: number | string }
+            | number
+            | string,
+        height?: number | string
     ): void {
         if (typeof width === "object") {
             this._players.forEach((other) => other.resize(width));

@@ -139,8 +139,11 @@ export interface IPlayer {
     remove(): void;
 
     // Resize the player
-    resize(options: { width?: number; height?: number }): void;
-    resize(width: number, height: number): void;
+    resize(options: {
+        width?: number | string;
+        height?: number | string;
+    }): void;
+    resize(width: number | string, height: number | string): void;
 }
 
 export interface IMetaPlayer extends IPlayer {
