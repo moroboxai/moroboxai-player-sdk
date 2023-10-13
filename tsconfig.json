@@ -21,6 +21,7 @@
         "plugins": [
             {
                 "transform": "typescript-transform-paths",
+                "exclude": ["**/node_modules/**"],
                 "afterDeclarations": true
             }
         ]
