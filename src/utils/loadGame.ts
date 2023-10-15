@@ -25,10 +25,14 @@ export interface LoadGameOptions {
     pluginDriver: PluginDriver;
     // VM for the game
     vm: IVM;
-    // Called when the header has been loaded
-    onHeaderLoaded: (header: GameHeader) => void;
-    // Called when the task completes
-    callback: (task: LoadGameTask) => void;
+    // Called when the header is loaded
+    onHeaderLoaded?: (task: LoadGameTask) => void;
+    // Called when there is an error loading the header
+    onHeaderError?: (task: LoadGameTask) => void;
+    // Called when the game is loaded
+    onGameLoaded?: (task: LoadGameTask) => void;
+    // Called when there is an error loading the game
+    onGameError?: (task: LoadGameTask) => void;
 }
 
 export class LoadGameTask {
@@ -55,14 +59,9 @@ export class LoadGameTask {
     }
 
     /**
-     * Load the game without booting.
-     *
-     * This function is written so that it never mutate the player
-     * until the very end. This is made so to ensure there is no side effect
-     * when the user asks the player to load a game while another one is
-     * already loading.
+     * Load the header.
      */
-    loadGame(): Promise<void> {
+    loadHeader(): Promise<void> {
         return new Promise<void>(async (resolve) => {
             // Game server
             console.log("start game server...");
@@ -75,14 +74,15 @@ export class LoadGameTask {
 
             // Header
             console.log("load game header...");
-            const loadHeaderOptions: LoadHeaderOptions = {
-                url: this.options.url,
-                gameServer: this.gameServer
-            };
             const loadHeaderResult =
                 await this.options.pluginDriver.hookReduceArg0(
                     "loadHeader",
-                    [loadHeaderOptions],
+                    [
+                        {
+                            url: this.options.url,
+                            gameServer: this.gameServer
+                        }
+                    ],
                     (options, result, plugin) => {
                         if (result !== null) {
                             options.header = result;
@@ -96,6 +96,42 @@ export class LoadGameTask {
                 throw "could not load game header";
             }
             console.log("game header loaded", this.header);
+
+            return resolve();
+        })
+            .then(() => {
+                this._isDone = true;
+                if (this._cancelRequested) {
+                    this.cancel();
+                    return;
+                }
+                if (this.options.onHeaderLoaded !== undefined) {
+                    this.options.onHeaderLoaded(this);
+                }
+            })
+            .catch((reason: any) => {
+                this._isDone = true;
+                this.error = reason;
+                this.cancel();
+                if (this.options.onHeaderError !== undefined) {
+                    this.options.onHeaderError(this);
+                }
+            });
+    }
+
+    /**
+     * Load the game without booting.
+     *
+     * This function is written so that it never mutate the player
+     * until the very end. This is made so to ensure there is no side effect
+     * when the user asks the player to load a game while another one is
+     * already loading.
+     */
+    loadGame(): Promise<void> {
+        return new Promise<void>(async (resolve) => {
+            if (this.gameServer === undefined || this.header === undefined) {
+                throw "no game server or header";
+            }
 
             // Boot
             const boot = this.options.boot ?? this.header.boot;
@@ -132,8 +168,6 @@ export class LoadGameTask {
             this.context = loadBootResult.context;
             this.boot = loadBootResult.boot;
 
-            this.options.onHeaderLoaded(this.header);
-
             // Game
             console.log("boot the game...");
             this.game = await loadBootResult.boot({ vm: this.options.vm });
@@ -147,13 +181,17 @@ export class LoadGameTask {
                     this.cancel();
                     return;
                 }
-                this.options.callback(this);
+                if (this.options.onGameLoaded !== undefined) {
+                    this.options.onGameLoaded(this);
+                }
             })
             .catch((reason: any) => {
                 this._isDone = true;
                 this.error = reason;
                 this.cancel();
-                this.options.callback(this);
+                if (this.options.onGameError !== undefined) {
+                    this.options.onGameError(this);
+                }
             });
     }
 

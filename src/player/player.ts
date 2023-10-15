@@ -114,10 +114,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             }
 
             this._attach();
-
-            if (this.autoPlay) {
-                this.play();
-            }
+            this.play({ url: this._options.url });
         }
     }
 
@@ -144,12 +141,11 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             div.addEventListener("mouseenter", () => this._onMouseEnter());
             div.addEventListener("mousemove", () => this._onMouseMove());
             div.addEventListener("mouseleave", () => this._onMouseLeave());
-            div.style.position = "relative";
+            div.style.width = "100%";
+            div.style.height = "100%";
+            div.style.backgroundPosition = "center";
             div.style.backgroundSize = "cover";
-
-            if (this._options.splashart !== undefined) {
-                div.style.backgroundImage = `url('${this._options.splashart}')`;
-            }
+            div.style.backgroundColor = "black";
 
             this._ui.element.appendChild(div);
         }
@@ -162,6 +158,9 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             div.style.position = "absolute";
             div.style.left = "0";
             div.style.top = "0";
+            div.style.display = "flex";
+            div.style.flexDirection = "row";
+            div.style.justifyContent = "center";
             this._ui.wrapper.appendChild(div);
         }
 
@@ -181,21 +180,73 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         }
     }
 
-    private _play(url?: string, autoPlay?: boolean): void {
-        if (url !== undefined) {
-            // Changing the URL stops the game
-            this.stop();
+    // Load the header
+    private _loadHeader(options: { url: string; autoPlay?: boolean }) {
+        this._options.url = options.url;
 
-            this._options.url = url ?? this._options.url;
+        // Cancel the previous load
+        this._loadGameTask?.cancel();
 
-            // Play the game if required
-            if (autoPlay === true || this.autoPlay) {
-                this._play();
+        // Stop the current game
+        this.stop();
+
+        // Show loading
+        this._state = EPlayerState.Loading;
+        this._ui.overlay?.loading();
+
+        // Create a new task for loading the header
+        this._loadGameTask = new LoadGameTask({
+            url: this.url,
+            sdkConfig: this._sdkConfig,
+            pluginDriver: this._pluginDriver,
+            vm: this,
+            onHeaderLoaded: (task) => {
+                this._gameServer = task.gameServer!;
+                this._header = task.header!;
+                this.resize();
+
+                // Change the preview image
+                if (this._ui.wrapper !== undefined) {
+                    this._ui.wrapper.style.backgroundImage =
+                        this._header.previewUrl !== undefined
+                            ? `url('${this._gameServer.href(
+                                  this._header.previewUrl
+                              )}')`
+                            : "";
+                }
+
+                // Optionally play the game
+                if ((options.autoPlay ?? this._options.autoPlay) === true) {
+                    this._play();
+                } else {
+                    this._state = EPlayerState.Idle;
+                    this._ui.overlay?.stopped();
+                }
+            },
+            onHeaderError: (task) => {
+                // Check if an error occurred
+                if (task.error !== undefined) {
+                    console.error(task.error);
+                }
+            },
+            onGameLoaded: (task) => {
+                this._game = task.game!;
+                this._game.ticker = this._tickFromGame;
+                this.resize();
+                this._ready();
+            },
+            onGameError: (task) => {
+                // Check if an error occurred
+                if (task.error !== undefined) {
+                    console.error(task.error);
+                }
             }
-            return;
-        }
+        });
+        this._loadGameTask.loadHeader();
+    }
 
-        // No URL, nor header change, unpause the game
+    private _play(): void {
+        // Unpause the game if possible
         if (this._state === EPlayerState.Pause) {
             this._state = EPlayerState.Playing;
 
@@ -210,12 +261,11 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             return;
         }
 
-        // Can't call play while there is already a game playing
-        if (this._state !== EPlayerState.Idle) {
-            console.error("a game is already playing, call stop before");
-            return;
+        if (this._loadGameTask === undefined) {
+            throw "player not ready for play";
         }
 
+        // Load the game
         this._state = EPlayerState.Loading;
         this._startLoadingDate = new Date();
 
@@ -223,34 +273,16 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             this._ui.overlay.loading();
         }
 
+        // Remove the preview image
+        if (this._ui.wrapper !== undefined) {
+            this._ui.wrapper.style.backgroundImage = "";
+        }
+
         // Should never happen
         if (this._ui.element === undefined) {
             throw "no root HTML element";
         }
 
-        // Create a new task for loading the game
-        this._loadGameTask = new LoadGameTask({
-            sdkConfig: this._sdkConfig,
-            url: this._options.url,
-            boot: this._options.boot,
-            pluginDriver: this._pluginDriver,
-            vm: this,
-            onHeaderLoaded: (header) => {
-                this._header = header;
-            },
-            callback: (task) => {
-                // Check if an error occurred
-                if (task.error !== undefined) {
-                    console.log(task.error);
-                }
-
-                this.resize();
-                this._game = task.game!;
-                this._game.ticker = this._tickFromGame;
-                this._gameServer = task.gameServer;
-                this._ready();
-            }
-        });
         this._loadGameTask.loadGame();
     }
 
@@ -512,7 +544,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
     }
 
     set url(value: string) {
-        this.play({ url: value });
+        this._loadHeader({ url: value });
     }
 
     get boot(): BootLike | undefined {
@@ -565,15 +597,18 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
               }
     ): void {
         if (typeof options === "object") {
-            this._play(options.url, options.autoPlay);
+            // Load a new game
+            this._loadHeader({ url: options.url, autoPlay: options.autoPlay });
             return;
         }
 
         if (options !== undefined) {
-            this._play(options);
+            // Load a new game
+            this._loadHeader({ url: options });
             return;
         }
 
+        // Keep the current game
         this._play();
     }
 
@@ -605,6 +640,8 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             this._gameServer.close();
             this._gameServer = undefined;
         }
+
+        this._loadGameTask = undefined;
 
         this._speed = 1;
         this._state = EPlayerState.Idle;
