@@ -143,6 +143,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             div.addEventListener("mouseleave", () => this._onMouseLeave());
             div.style.width = "100%";
             div.style.height = "100%";
+            div.style.position = "relative";
             div.style.backgroundPosition = "center";
             div.style.backgroundSize = "cover";
             div.style.backgroundColor = "black";
