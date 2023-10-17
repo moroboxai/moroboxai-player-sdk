@@ -1,7 +1,7 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
 import type { BootLike } from "moroboxai-game-sdk";
 import { ControllerBus } from "@/controller";
-import type { IController } from "@/controller";
+import type { IController, ControllerSaveState } from "@/controller";
 import { Overlay } from "@/overlay";
 import {
     DEFAULT_GAME_HEIGHT,
@@ -35,10 +35,11 @@ interface Dimension {
     height: number;
 }
 
-interface StretchDimension {
-    width?: number;
-    height?: number;
-}
+type PlayerSaveState = MoroboxAIGameSDK.GameSaveState & {
+    physicsAccumulator: number;
+    game?: MoroboxAIGameSDK.GameSaveState;
+    controllers: ControllerSaveState[];
+};
 
 // Player instance for controlling the game
 export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
@@ -198,6 +199,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         // Create a new task for loading the header
         this._loadGameTask = new LoadGameTask({
             url: this.url,
+            boot: this._options.boot,
             sdkConfig: this._sdkConfig,
             pluginDriver: this._pluginDriver,
             vm: this,
@@ -339,7 +341,9 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
 
         const aspectRatio =
             this.header?.aspectRatio ?? DEFAULT_GAME_ASPECT_RATIO;
-        const [a, b] = aspectRatio.split("/").map((value) => parseInt(value));
+        const [a, b] = aspectRatio
+            .split("/")
+            .map((value: string) => parseInt(value));
         // The game specifies only its width, so compute the height
         if (width !== undefined) {
             return { width, height: (width * b) / a };
@@ -671,25 +675,20 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         }
     }
 
-    saveState(): object {
+    saveState(): PlayerSaveState {
         return {
+            // Required from GameSaveState but not used
+            isGameOver: false,
             physicsAccumulator: this._physicsAccumulator,
-            game: this._game !== undefined ? this._game.saveState() : {},
+            game: this._game?.saveState(),
             controllers: this._controllerBus.saveState()
         };
     }
 
-    loadState(state: any): void {
-        this._physicsAccumulator =
-            state.physicsAccumulator !== undefined
-                ? state.physicsAccumulator
-                : 0;
-        if (this._game !== undefined) {
-            this._game.loadState(state.game !== undefined ? state.game : {});
-        }
-        this._controllerBus.loadState(
-            state.controllers !== undefined ? state.controllers : [{}, {}]
-        );
+    loadState(state: PlayerSaveState): void {
+        this._physicsAccumulator = state.physicsAccumulator ?? 0;
+        this._game?.loadState(state.game);
+        this._controllerBus.loadState(state.controllers ?? [{}, {}]);
     }
 
     _tickFromGame(delta: number): void {

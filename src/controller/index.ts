@@ -36,6 +36,13 @@ export type LoadAgentOptions = {
 );
 
 /**
+ * Save state for the controllers.
+ */
+export interface ControllerSaveState {
+    [key: string]: any;
+}
+
+/**
  * Interface for the keyboard or gamepad.
  */
 export interface IInputController {
@@ -57,9 +64,9 @@ export interface IController {
      */
     inputs(state: object): Inputs;
 
-    saveState(): object;
+    saveState(): ControllerSaveState;
 
-    loadState(state: object): void;
+    loadState(state: ControllerSaveState): void;
 
     /**
      * Load an agent to this controller.
@@ -173,7 +180,7 @@ class AgentController implements IController {
         return {};
     }
 
-    saveState(): object {
+    saveState(): ControllerSaveState {
         if (this._vm !== undefined) {
             try {
                 return this._vm.saveState();
@@ -188,7 +195,7 @@ class AgentController implements IController {
         return {};
     }
 
-    loadState(state: object) {
+    loadState(state: ControllerSaveState) {
         if (this._vm !== undefined) {
             try {
                 this._vm.loadState(state);
@@ -318,14 +325,14 @@ export class ControllerBus {
         }));
     }
 
-    saveState(): Array<object> {
+    saveState(): ControllerSaveState[] {
         return [
             this._controllers.get(0)!.saveState(),
             this._controllers.get(1)!.saveState()
         ];
     }
 
-    loadState(state: Array<object>) {
+    loadState(state: ControllerSaveState[]) {
         this._controllers.get(0)!.loadState(state);
         this._controllers.get(1)!.loadState(state);
     }
