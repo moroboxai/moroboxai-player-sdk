@@ -9,7 +9,12 @@ import {
     DEFAULT_GAME_SCALE,
     DEFAULT_GAME_ASPECT_RATIO
 } from "@/constants";
-import type { ISDKConfig, IPlayer, PlayerOptions } from "@/player";
+import type {
+    ISDKConfig,
+    IPlayer,
+    PlayerOptions,
+    PlayerSaveState
+} from "@/player";
 import { PluginContext, PluginDriver, plugins } from "@/plugin";
 import { LoadGameTask } from "@/utils/loadGame";
 
@@ -34,12 +39,6 @@ interface Dimension {
     width: number;
     height: number;
 }
-
-type PlayerSaveState = MoroboxAIGameSDK.GameSaveState & {
-    physicsAccumulator: number;
-    game?: MoroboxAIGameSDK.GameSaveState;
-    controllers: ControllerSaveState[];
-};
 
 // Player instance for controlling the game
 export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
@@ -685,10 +684,10 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         };
     }
 
-    loadState(state: PlayerSaveState): void {
-        this._physicsAccumulator = state.physicsAccumulator ?? 0;
-        this._game?.loadState(state.game);
-        this._controllerBus.loadState(state.controllers ?? [{}, {}]);
+    loadState(state?: PlayerSaveState): void {
+        this._physicsAccumulator = state?.physicsAccumulator ?? 0;
+        this._game?.loadState(state?.game);
+        this._controllerBus.loadState(state?.controllers ?? [{}, {}]);
     }
 
     _tickFromGame(delta: number): void {
@@ -717,14 +716,25 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
 
         // Render the last frame
         this._tickOneFrame(PHYSICS_TIMESTEP, true);
+
+        // Check for game over
+        const state = this._game.saveState();
+        if (state.isGameOver) {
+            // Reset the game
+            this._game.loadState();
+        }
     }
 
     _tickOneFrame(delta: number, render: boolean): void {
+        if (this._game === undefined) {
+            return;
+        }
+
         // Increase time
         this._time += delta;
         this._frame++;
         // Ask the agents the next inputs and tick the game
-        const state = this._game!.getStateForAgent();
-        this._game!.tick(this._controllerBus.inputs(state), delta, render);
+        const state = this._game.getStateForAgent();
+        this._game.tick(this._controllerBus.inputs(state), delta, render);
     }
 }

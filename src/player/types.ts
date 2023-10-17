@@ -1,8 +1,14 @@
-import type { GameHeader, BootLike, IFileServer } from "moroboxai-game-sdk";
+import type {
+    GameHeader,
+    BootLike,
+    IFileServer,
+    GameSaveState
+} from "moroboxai-game-sdk";
 import type {
     LoadAgentOptions,
     IController,
-    IInputController
+    IInputController,
+    ControllerSaveState
 } from "@/controller";
 import type { Plugin } from "@/plugin";
 
@@ -50,6 +56,12 @@ export interface PlayerOptions {
     plugins?: Plugin[];
     onReady?: () => void;
 }
+
+export type PlayerSaveState = GameSaveState & {
+    physicsAccumulator: number;
+    game?: GameSaveState;
+    controllers: ControllerSaveState[];
+};
 
 export interface IPlayer {
     // Get/Set the game speed
@@ -113,14 +125,14 @@ export interface IPlayer {
     stop(): void;
 
     /**
-     * Save the state of the game.
+     * Save the state of the player.
      */
-    saveState(): object;
+    saveState(): PlayerSaveState;
 
     /**
-     * Load the state of the game.
+     * Load the state of the player.
      */
-    loadState(state: object): void;
+    loadState(state?: PlayerSaveState): void;
 
     /**
      * Tick the player.

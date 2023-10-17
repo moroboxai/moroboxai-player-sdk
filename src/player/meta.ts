@@ -6,7 +6,7 @@ export type {
     IInputController,
     IController
 } from "@/controller";
-import type { IPlayer, IMetaPlayer } from "./types";
+import type { IPlayer, IMetaPlayer, PlayerSaveState } from "./types";
 
 export class MetaPlayer implements IMetaPlayer {
     private _players: Array<IPlayer> = [];
@@ -159,11 +159,11 @@ export class MetaPlayer implements IMetaPlayer {
         this._players.forEach((other) => other.stop());
     }
 
-    saveState(): object {
+    saveState(): PlayerSaveState {
         return this.masterPlayer!.saveState();
     }
 
-    loadState(state: object) {
+    loadState(state?: PlayerSaveState) {
         this._players.forEach((other) => other.loadState(state));
     }
 
