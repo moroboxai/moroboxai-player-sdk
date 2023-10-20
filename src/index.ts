@@ -1,6 +1,5 @@
 import type { IFileServer } from "moroboxai-game-sdk";
 export type {
-    AgentLanguage,
     LoadAgentOptions,
     IInputController,
     IController

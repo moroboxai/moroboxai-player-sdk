@@ -1,11 +1,5 @@
 import type { BootLike, GameHeader } from "moroboxai-game-sdk";
 import type { IController } from "@/controller";
-export type {
-    AgentLanguage,
-    LoadAgentOptions,
-    IInputController,
-    IController
-} from "@/controller";
 import type {
     IPlayer,
     IMetaPlayer,

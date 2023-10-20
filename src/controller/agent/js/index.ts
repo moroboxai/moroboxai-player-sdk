@@ -1,7 +1,8 @@
 import type { Inputs } from "moroboxai-game-sdk";
-import { IVM, AGENT_FUNCTIONS } from "@/controller/vm/_utils";
+import type { IAgent } from "@/controller/agent/_utils";
+import { AGENT_FUNCTIONS } from "@/controller/agent/_utils";
 
-class JSVM implements IVM {
+class JSAgent implements IAgent {
     private _fun: Function;
     private _context: any;
 
@@ -38,7 +39,7 @@ class JSVM implements IVM {
  * @param {string} script - script to inject
  * @returns {IVM} - new JS VM
  */
-export function initJS(script: string | undefined): IVM {
+export function initJS(script: string | undefined): IAgent {
     const context = {};
     const builtins: any = {
         // For exposing functions from game
@@ -55,5 +56,5 @@ export function initJS(script: string | undefined): IVM {
     );
 
     fun(...params.map((_) => builtins[_]));
-    return new JSVM(fun, context);
+    return new JSAgent(fun, context);
 }

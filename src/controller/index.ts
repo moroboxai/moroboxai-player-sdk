@@ -3,21 +3,8 @@ import type {
     GameSaveState
 } from "moroboxai-game-sdk";
 import type { Inputs } from "moroboxai-game-sdk";
-import { initVM } from "./vm";
-import type { AgentLanguage, IVM } from "./vm";
-export type { AgentLanguage } from "./vm";
-
-/**
- * Information of a loaded agent.
- */
-interface Agent {
-    // Language of the code
-    language: AgentLanguage;
-    // URL of the agent
-    url?: string;
-    // Code of the agent
-    code: string;
-}
+import { initAgent } from "./agent";
+import type { AgentLanguage, IAgent } from "./agent";
 
 /**
  * Options for loading an agent.
@@ -34,7 +21,7 @@ export type LoadAgentOptions = {
     | {
           url?: never;
           // Direct script of the agent
-          script: string;
+          script: string | IAgent;
       }
 );
 
@@ -85,10 +72,7 @@ export interface IController {
 
 class AgentController implements IController {
     // Loaded agent
-    private _agent?: Agent;
-
-    // VM running the code for the agent
-    private _vm?: IVM;
+    private _agent?: IAgent;
 
     // Has the VM exception been logged
     private _exceptionLogged: boolean = false;
@@ -102,7 +86,7 @@ class AgentController implements IController {
     }
 
     get isBound(): boolean {
-        return this._vm !== undefined;
+        return this._agent !== undefined;
     }
 
     get isAgent(): boolean {
@@ -123,20 +107,17 @@ class AgentController implements IController {
                 return "javascript";
             }
 
-            const loadFromCode = (
+            const loadFromScript = (
                 language: AgentLanguage,
-                url: string | undefined,
-                code: string
+                script: string | IAgent
             ) => {
-                const vm = initVM(language, code);
+                const agent =
+                    typeof script === "string"
+                        ? initAgent(language, script)
+                        : script;
 
-                this._agent = {
-                    language,
-                    url,
-                    code
-                };
                 this.unloadAgent();
-                this._vm = vm;
+                this._agent = agent;
                 this._exceptionLogged = false;
 
                 resolve();
@@ -145,19 +126,17 @@ class AgentController implements IController {
             if (options.url !== undefined) {
                 fetch(options.url)
                     .then((response) => response.text())
-                    .then((code) =>
-                        loadFromCode(
+                    .then((script) =>
+                        loadFromScript(
                             options.language !== undefined
                                 ? options.language
                                 : typeFromUrl(options.url!),
-                            options.url,
-                            code
+                            script
                         )
                     );
             } else if (options.script !== undefined) {
-                loadFromCode(
+                loadFromScript(
                     options.language ?? "javascript",
-                    undefined,
                     options.script
                 );
             }
@@ -165,13 +144,13 @@ class AgentController implements IController {
     }
 
     unloadAgent(): void {
-        this._vm = undefined;
+        this._agent = undefined;
     }
 
     inputs(state: object): Inputs {
-        if (this._vm !== undefined) {
+        if (this._agent !== undefined) {
             try {
-                return this._vm.inputs(state);
+                return this._agent.inputs(state);
             } catch (e) {
                 if (!this._exceptionLogged) {
                     this._exceptionLogged = true;
@@ -184,9 +163,9 @@ class AgentController implements IController {
     }
 
     saveState(): ControllerSaveState {
-        if (this._vm !== undefined) {
+        if (this._agent !== undefined) {
             try {
-                return this._vm.saveState();
+                return this._agent.saveState();
             } catch (e) {
                 if (!this._exceptionLogged) {
                     this._exceptionLogged = true;
@@ -199,9 +178,9 @@ class AgentController implements IController {
     }
 
     loadState(state: ControllerSaveState) {
-        if (this._vm !== undefined) {
+        if (this._agent !== undefined) {
             try {
-                this._vm.loadState(state);
+                this._agent.loadState(state);
             } catch (e) {
                 if (!this._exceptionLogged) {
                     this._exceptionLogged = true;

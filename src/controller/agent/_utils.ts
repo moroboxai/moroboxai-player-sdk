@@ -1,6 +1,7 @@
 import type { Inputs } from "moroboxai-game-sdk";
 
-export interface IVM {
+// A loaded agent
+export interface IAgent {
     // Save the state of the agent
     saveState(): object;
     // Load the state of the agent
