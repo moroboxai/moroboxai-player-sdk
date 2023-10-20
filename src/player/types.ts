@@ -5,7 +5,7 @@ import type {
     GameSaveState
 } from "moroboxai-game-sdk";
 import type {
-    LoadAgentOptions,
+    AgentLike,
     IController,
     IInputController,
     ControllerSaveState
@@ -61,7 +61,7 @@ export interface PlayerOptions {
     // Simulated or not
     simulated?: boolean;
     // List of agents
-    agents?: LoadAgentOptions | LoadAgentOptions[];
+    agents?: AgentLike | AgentLike[];
     // List of plugins
     plugins?: Plugin[];
     onReady?: () => void;

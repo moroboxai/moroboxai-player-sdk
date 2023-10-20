@@ -1,10 +1,8 @@
-import type {
-    Controller as ControllerState,
-    GameSaveState
-} from "moroboxai-game-sdk";
+import type { Controller as ControllerState } from "moroboxai-game-sdk";
 import type { Inputs } from "moroboxai-game-sdk";
 import { initAgent } from "./agent";
 import type { AgentLanguage, IAgent } from "./agent";
+export type { AgentLanguage, IAgent } from "./agent";
 
 /**
  * Options for loading an agent.
@@ -21,9 +19,18 @@ export type LoadAgentOptions = {
     | {
           url?: never;
           // Direct script of the agent
-          script: string | IAgent;
+          script: string;
       }
 );
+
+export type AgentLike = LoadAgentOptions | IAgent;
+
+function isLoadAgentOptions(
+    o: LoadAgentOptions | IAgent
+): o is LoadAgentOptions {
+    o = o as LoadAgentOptions;
+    return o.url !== undefined || o.script !== undefined;
+}
 
 /**
  * Save state for the controllers.
@@ -60,9 +67,9 @@ export interface IController {
 
     /**
      * Load an agent to this controller.
-     * @param {LoadAgentOptions} options - options for loading
+     * @param {AgentLike} options - options for loading
      */
-    loadAgent(options: LoadAgentOptions): Promise<void>;
+    loadAgent(options: AgentLike): Promise<void>;
 
     /**
      * Unload the agent.
@@ -97,7 +104,7 @@ class AgentController implements IController {
         return false;
     }
 
-    loadAgent(options: LoadAgentOptions): Promise<void> {
+    loadAgent(options: AgentLike): Promise<void> {
         return new Promise<void>((resolve) => {
             function typeFromUrl(url: string): AgentLanguage {
                 if (url.endsWith(".lua")) {
@@ -107,10 +114,7 @@ class AgentController implements IController {
                 return "javascript";
             }
 
-            const loadFromScript = (
-                language: AgentLanguage,
-                script: string | IAgent
-            ) => {
+            const load = (language: AgentLanguage, script: string | IAgent) => {
                 const agent =
                     typeof script === "string"
                         ? initAgent(language, script)
@@ -123,22 +127,23 @@ class AgentController implements IController {
                 resolve();
             };
 
-            if (options.url !== undefined) {
-                fetch(options.url)
-                    .then((response) => response.text())
-                    .then((script) =>
-                        loadFromScript(
-                            options.language !== undefined
-                                ? options.language
-                                : typeFromUrl(options.url!),
-                            script
-                        )
-                    );
-            } else if (options.script !== undefined) {
-                loadFromScript(
-                    options.language ?? "javascript",
-                    options.script
-                );
+            if (isLoadAgentOptions(options)) {
+                if (options.url !== undefined) {
+                    fetch(options.url)
+                        .then((response) => response.text())
+                        .then((script) =>
+                            load(
+                                options.language !== undefined
+                                    ? options.language
+                                    : typeFromUrl(options.url!),
+                                script
+                            )
+                        );
+                } else if (options.script !== undefined) {
+                    load(options.language ?? "javascript", options.script);
+                }
+            } else {
+                load("javascript", options);
             }
         });
     }
