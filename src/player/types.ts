@@ -51,7 +51,7 @@ export interface PlayerOptions {
     // Simulated or not
     simulated?: boolean;
     // List of agents
-    agents?: Array<LoadAgentOptions>;
+    agents?: LoadAgentOptions | LoadAgentOptions[];
     // List of plugins
     plugins?: Plugin[];
     onReady?: () => void;

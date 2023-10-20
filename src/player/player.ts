@@ -89,6 +89,10 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             inputController: config.inputController
         });
         if (options.agents !== undefined) {
+            if (!Array.isArray(options.agents)) {
+                options.agents = [options.agents];
+            }
+
             options.agents.map((agent, index) => {
                 const controller = this._controllerBus.get(index);
                 if (controller !== undefined) {

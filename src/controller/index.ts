@@ -1,4 +1,7 @@
-import type { Controller as ControllerState } from "moroboxai-game-sdk";
+import type {
+    Controller as ControllerState,
+    GameSaveState
+} from "moroboxai-game-sdk";
 import type { Inputs } from "moroboxai-game-sdk";
 import { initVM } from "./vm";
 import type { AgentLanguage, IVM } from "./vm";
@@ -20,18 +23,18 @@ interface Agent {
  * Options for loading an agent.
  */
 export type LoadAgentOptions = {
-    // Language of the code
+    // Language of the script
     language?: AgentLanguage;
 } & (
     | {
-          // URL where to find the code
+          // URL where to find the script
           url: string;
-          code?: never;
+          script?: never;
       }
     | {
           url?: never;
-          // Direct code of the agent
-          code: string;
+          // Direct script of the agent
+          script: string;
       }
 );
 
@@ -151,11 +154,11 @@ class AgentController implements IController {
                             code
                         )
                     );
-            } else if (options.code !== undefined) {
+            } else if (options.script !== undefined) {
                 loadFromCode(
                     options.language ?? "javascript",
                     undefined,
-                    options.code
+                    options.script
                 );
             }
         });
@@ -315,7 +318,7 @@ export class ControllerBus {
         return this._controllers.get(controllerId);
     }
 
-    inputs(state: object): Array<ControllerState> {
+    inputs(state: object): ControllerState[] {
         return this._controllersArray.map((controller) => ({
             label: controller.label,
             isBound: controller.isBound,
