@@ -8,7 +8,7 @@ import type {
 } from "moroboxai-game-sdk";
 import { PluginDriver } from "@/plugin";
 import type { LoadBootOptions, LoadHeaderOptions } from "@/plugin";
-import type { ISDKConfig } from "@/player";
+import type { SDKConfig } from "@/player";
 import { startGameServer } from "./startGameServer";
 
 /**
@@ -20,7 +20,7 @@ export interface LoadGameOptions {
     // Override the boot defined in header
     boot?: BootLike;
     // Config of the SDK
-    sdkConfig: ISDKConfig;
+    sdkConfig: SDKConfig;
     // Plugins
     pluginDriver: PluginDriver;
     // VM for the game

@@ -1,5 +1,5 @@
 import type { IGameServer, IFileServer } from "moroboxai-game-sdk";
-import type { ISDKConfig } from "@/player";
+import type { SDKConfig } from "@/player";
 import { GameServer } from "@/server";
 
 /**
@@ -7,7 +7,7 @@ import { GameServer } from "@/server";
  * @param {string} baseUrl - Base URL
  * @returns {IFileServer} A file server
  */
-function createFileServer(sdkConfig: ISDKConfig, baseUrl: string): IFileServer {
+function createFileServer(sdkConfig: SDKConfig, baseUrl: string): IFileServer {
     // Point to zip file
     if (baseUrl.endsWith(".zip")) {
         return sdkConfig.zipServer(baseUrl);
@@ -28,7 +28,7 @@ function createFileServer(sdkConfig: ISDKConfig, baseUrl: string): IFileServer {
  * @param {stirng} url - URL of the game
  */
 export function startGameServer(
-    config: ISDKConfig,
+    config: SDKConfig,
     url: string
 ): Promise<IGameServer> {
     return new Promise<IGameServer>((resolve) => {

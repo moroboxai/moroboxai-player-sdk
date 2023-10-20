@@ -12,7 +12,15 @@ import type {
 } from "@/controller";
 import type { Plugin } from "@/plugin";
 
-export interface ISDKConfig {
+/**
+ * Possible stretch modes for the player.
+ *
+ * fill: the player is configured to take 100% width and height.
+ * fixed: the player is set to the size of the game.
+ */
+export type StretchMode = "fill" | "fixed";
+
+export interface SDKConfig {
     // Create a controller listening for player inputs
     inputController: () => IInputController;
     // Create a file server for a given URL
@@ -43,6 +51,8 @@ export interface PlayerOptions {
     height?: number | string;
     // Scale of the player based on native size of the game
     scale?: number;
+    // How the player adapt its size
+    stretchMode?: StretchMode;
     resizable?: boolean;
     // Play the game after init
     autoPlay?: boolean;
@@ -72,6 +82,8 @@ export interface IPlayer {
     height: number;
     // Get/Set the scale of player
     scale: number;
+    // How the player adapt its size
+    stretchMode: StretchMode;
     // Get/Set if the player is resizable
     resizable: boolean;
     // Native width of the game

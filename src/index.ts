@@ -6,7 +6,7 @@ export type {
     IController
 } from "@/controller";
 import { Player } from "@/player";
-import type { ISDKConfig, IPlayer, PlayerOptions } from "@/player";
+import type { SDKConfig, IPlayer, PlayerOptions } from "@/player";
 export type * from "@/player/types";
 export * from "@/plugin";
 
@@ -49,35 +49,35 @@ function isPlayerOptions(
 }
 
 function createPlayer(
-    config: ISDKConfig,
+    config: SDKConfig,
     element: Element,
     options: PlayerOptions
 ): IPlayer {
     return new Player(config, element, options);
 }
 
-export function init(config: ISDKConfig): IPlayer | IPlayer[];
+export function init(config: SDKConfig): IPlayer | IPlayer[];
 export function init(
-    config: ISDKConfig,
+    config: SDKConfig,
     options: PlayerOptions
 ): IPlayer | IPlayer[];
-export function init(config: ISDKConfig, element: Element): IPlayer;
+export function init(config: SDKConfig, element: Element): IPlayer;
 export function init(
-    config: ISDKConfig,
+    config: SDKConfig,
     element: Element[] | HTMLCollectionOf<Element>
 ): IPlayer[];
 export function init(
-    config: ISDKConfig,
+    config: SDKConfig,
     element: Element,
     options: PlayerOptions
 ): IPlayer;
 export function init(
-    config: ISDKConfig,
+    config: SDKConfig,
     element: Element[] | HTMLCollectionOf<Element>,
     options: PlayerOptions
 ): IPlayer[];
 export function init(
-    config: ISDKConfig,
+    config: SDKConfig,
     element?: PlayerOptions | Element | Element[] | HTMLCollectionOf<Element>,
     options?: PlayerOptions
 ): IPlayer | IPlayer[];
@@ -88,7 +88,7 @@ export function init(
  * @param {PlayerOptions} options Options for initializing the player
  */
 export function init(
-    config: ISDKConfig,
+    config: SDKConfig,
     element?: PlayerOptions | Element | Element[] | HTMLCollectionOf<Element>,
     options?: PlayerOptions
 ): IPlayer | IPlayer[] {

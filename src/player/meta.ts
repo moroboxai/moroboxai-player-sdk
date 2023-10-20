@@ -6,7 +6,12 @@ export type {
     IInputController,
     IController
 } from "@/controller";
-import type { IPlayer, IMetaPlayer, PlayerSaveState } from "./types";
+import type {
+    IPlayer,
+    IMetaPlayer,
+    PlayerSaveState,
+    StretchMode
+} from "./types";
 
 export class MetaPlayer implements IMetaPlayer {
     private _players: Array<IPlayer> = [];
@@ -46,6 +51,14 @@ export class MetaPlayer implements IMetaPlayer {
 
     set height(val: number) {
         this._players.forEach((other) => (other.height = val));
+    }
+
+    get stretchMode(): StretchMode {
+        return this.masterPlayer!.stretchMode;
+    }
+
+    set stretchMode(val: StretchMode) {
+        this._players.forEach((other) => (other.stretchMode = val));
     }
 
     get scale(): number {

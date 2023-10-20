@@ -10,7 +10,8 @@ import {
     DEFAULT_GAME_ASPECT_RATIO
 } from "@/constants";
 import type {
-    ISDKConfig,
+    StretchMode,
+    SDKConfig,
     IPlayer,
     PlayerOptions,
     PlayerSaveState
@@ -42,7 +43,7 @@ interface Dimension {
 
 // Player instance for controlling the game
 export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
-    private _sdkConfig: ISDKConfig;
+    private _sdkConfig: SDKConfig;
     private _state: EPlayerState = EPlayerState.Idle;
     private _ui: {
         element?: HTMLElement;
@@ -70,7 +71,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
     // Time counter for player and game
     private _time: number = 0;
 
-    constructor(config: ISDKConfig, element: Element, options: PlayerOptions) {
+    constructor(config: SDKConfig, element: Element, options: PlayerOptions) {
         this._sdkConfig = config;
         this._options = options;
         this._pluginDriver = new PluginDriver(
@@ -145,7 +146,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             div.addEventListener("mouseenter", () => this._onMouseEnter());
             div.addEventListener("mousemove", () => this._onMouseMove());
             div.addEventListener("mouseleave", () => this._onMouseLeave());
-            div.style.width = "100%";
+            if (this._options.stretchMode) div.style.width = "100%";
             div.style.height = "100%";
             div.style.position = "relative";
             div.style.backgroundPosition = "center";
@@ -409,8 +410,15 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
 
         // Set the player size defined in options
         const rootElement = this._ui.element!;
-        let playerWidth = this._options.width;
-        let playerHeight = this._options.height;
+        const fixedMode = this.stretchMode === "fixed";
+        // In fixed mode, we take the size from options in priority, then the
+        // optimal size of the player.
+        // In fill mode, we take the size from options if defined, else we
+        // don't touch at the size.
+        let playerWidth =
+            this._options.width ?? (fixedMode ? playerSize.width : undefined);
+        let playerHeight =
+            this._options.height ?? (fixedMode ? playerSize.height : undefined);
         if (typeof playerWidth === "number") {
             rootElement.style.width = `${Math.round(playerWidth)}px`;
         } else if (typeof playerWidth === "string") {
@@ -512,6 +520,15 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
 
     set scale(value: number) {
         this._options.scale = value;
+        this.resize();
+    }
+
+    get stretchMode(): StretchMode {
+        return this._options.stretchMode ?? "fixed";
+    }
+
+    set stretchMode(value: StretchMode) {
+        this._options.stretchMode = value;
         this.resize();
     }
 
