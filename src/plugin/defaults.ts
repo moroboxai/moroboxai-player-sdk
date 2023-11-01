@@ -8,6 +8,12 @@ import {
 import type { GameHeader, BootFunction } from "moroboxai-game-sdk";
 import * as Agent from "@/agent";
 import type { IAgent } from "@agent/types";
+import {
+    PIXIMOROXEL8AI_BOOT,
+    PIXIMOROXEL8AI_URL,
+    MOROXEL8AI_BOOT,
+    MOROXEL8AI_URL
+} from "@/constants";
 import YAML from "yaml";
 
 /**
@@ -109,21 +115,42 @@ function loadBoot(
         }
 
         if (!options.boot.endsWith(".js") && !options.boot.endsWith(".ts")) {
+            // Is it an official MoroboxAI boot
+            const isOfficialBoot =
+                options.boot === PIXIMOROXEL8AI_BOOT ||
+                options.boot === MOROXEL8AI_BOOT;
+
+            // Raise an error if boot is not found
+            let raiseError = true;
+
             // Doesn't reference a filename, maybe a module name
             const m = (window as any)[options.boot];
             if (m === undefined) {
-                throw `boot module ${options.boot} not found`;
+                if (isOfficialBoot) {
+                    if (options.boot === PIXIMOROXEL8AI_BOOT) {
+                        options.boot = PIXIMOROXEL8AI_URL;
+                    } else if (options.boot === MOROXEL8AI_BOOT) {
+                        options.boot = MOROXEL8AI_URL;
+                    }
+
+                    // Don't raise an error and try the next method
+                    raiseError = false;
+                }
+
+                if (raiseError) {
+                    throw `boot module ${options.boot} not found`;
+                }
+            } else if (m.boot !== undefined) {
+                return resolve(m.boot);
             }
 
-            if (m.boot === undefined) {
+            if (raiseError) {
                 throw `no boot function found in module ${options.boot}`;
             }
-
-            return resolve(m.boot);
         }
 
+        // From remote URL
         if (options.boot.startsWith("http")) {
-            // From remote URL
             const res = await fetch(options.boot);
             if (!res.ok) {
                 throw res.statusText;
