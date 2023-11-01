@@ -7,9 +7,9 @@ import type {
     BootLike
 } from "moroboxai-game-sdk";
 import { PluginDriver } from "@/plugin";
-import type { LoadBootOptions, LoadHeaderOptions } from "@/plugin";
+import type { LoadBootPluginOptions } from "@/plugin";
 import type { SDKConfig } from "@/player";
-import { startGameServer } from "./startGameServer";
+import startGameServer from "./startGameServer";
 
 /**
  * Options for the task.
@@ -35,7 +35,10 @@ export interface LoadGameOptions {
     onGameError?: (task: LoadGameTask) => void;
 }
 
-export class LoadGameTask {
+/**
+ * Task for loading a game.
+ */
+class LoadGameTask {
     options: LoadGameOptions;
     // Started game server
     gameServer?: IGameServer;
@@ -51,7 +54,7 @@ export class LoadGameTask {
     error?: any;
     // Has the task completed
     private _isDone: boolean = false;
-    // Has a cancel been requested ?
+    // Has a cancel been requested?
     private _cancelRequested: boolean = false;
 
     constructor(options: LoadGameOptions) {
@@ -140,7 +143,7 @@ export class LoadGameTask {
             }
 
             console.log("load game boot...");
-            const loadBootOptions: LoadBootOptions = {
+            const loadBootOptions: LoadBootPluginOptions = {
                 boot,
                 gameServer: this.gameServer
             };
@@ -209,3 +212,5 @@ export class LoadGameTask {
         }
     }
 }
+
+export default LoadGameTask;

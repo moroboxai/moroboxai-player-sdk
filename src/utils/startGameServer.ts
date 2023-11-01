@@ -8,18 +8,7 @@ import { GameServer } from "@/server";
  * @returns {IFileServer} A file server
  */
 function createFileServer(sdkConfig: SDKConfig, baseUrl: string): IFileServer {
-    // Point to zip file
-    if (baseUrl.endsWith(".zip")) {
-        return sdkConfig.zipServer(baseUrl);
-    }
-
-    // Point to header.yml so take parent URL
-    if (baseUrl.endsWith(".yaml") || baseUrl.endsWith(".yml")) {
-        const pos = baseUrl.lastIndexOf("/");
-        baseUrl = pos < 0 ? "" : baseUrl.substring(0, pos);
-    }
-
-    return sdkConfig.fileServer(baseUrl);
+    return sdkConfig.fileServerFactory(baseUrl);
 }
 
 /**
@@ -27,7 +16,7 @@ function createFileServer(sdkConfig: SDKConfig, baseUrl: string): IFileServer {
  * @param {ISDKConfig} config - config of the SDK
  * @param {stirng} url - URL of the game
  */
-export function startGameServer(
+export default function startGameServer(
     config: SDKConfig,
     url: string
 ): Promise<IGameServer> {

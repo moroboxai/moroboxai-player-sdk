@@ -1,6 +1,6 @@
 {
     "name": "moroboxai-player-sdk",
-    "version": "0.1.0-alpha.50",
+    "version": "0.1.0-alpha.51",
     "description": "MoroboxAI SDK for embedding games",
     "author": "moroboxai",
     "main": "./lib/cjs/index.cjs",

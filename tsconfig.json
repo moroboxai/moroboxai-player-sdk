@@ -16,7 +16,13 @@
         "paths": {
             "fengari-web": ["typings/fengari"],
             "*": ["node_modules/*"],
-            "@/*": ["./src/*"]
+            "@/*": ["./src/*"],
+            "@agent/*": ["./src/agent/*"],
+            "@controller/*": ["./src/controller/*"],
+            "@player/*": ["./src/player/*"],
+            "@plugin/*": ["./src/plugin/*"],
+            "@ui/*": ["./src/ui/*"],
+            "@utils/*": ["./src/utils/*"]
         },
         "plugins": [
             {

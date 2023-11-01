@@ -58,3 +58,5 @@ export class Spinner {
         this._el.remove();
     }
 }
+
+export default Spinner;

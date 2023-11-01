@@ -1,7 +1,7 @@
 import type { Inputs } from "moroboxai-game-sdk";
 import * as MoroboxAILua from "moroboxai-lua";
 import { pop, call } from "moroboxai-lua";
-import type { IAgent } from "@/controller/agent/_utils";
+import type { LanguageConfig, IAgent } from "@agent/types";
 import { lua_State } from "fengari-web";
 
 class LuaAgent implements IAgent {
@@ -13,6 +13,10 @@ class LuaAgent implements IAgent {
 
     constructor(instance: MoroboxAILua.IVM) {
         this._instance = instance;
+    }
+
+    get label(): string {
+        return "unknown";
     }
 
     saveState(): object {
@@ -30,16 +34,24 @@ class LuaAgent implements IAgent {
     }
 }
 
-/**
- * Initialize a new Lua VM for running a script.
- * @param {string} script - script to inject
- * @param {Moroxel8AISDK.IMoroxel8AI} api - interface for the CPU
- * @returns {any} - new Lua VM
- */
-export function initLua(script: string | undefined): IAgent | undefined {
-    const instance = MoroboxAILua.initLua({
-        script
-    });
+const config: LanguageConfig = {
+    extensions: [".lua"],
+    main: "agent.lua",
+    init(options): IAgent | undefined {
+        const instance = MoroboxAILua.initLua({
+            /*api: {
+                require: func("require([s])", 1, (luaState: lua_State) => {
+                    const size = nargs(luaState);
+    
+                    return 0;
+                })
+            },*/
+            path: options.baseUrl,
+            script: options.script
+        });
 
-    return instance !== undefined ? new LuaAgent(instance) : undefined;
-}
+        return instance !== undefined ? new LuaAgent(instance) : undefined;
+    }
+};
+
+export default config;

@@ -1,4 +1,4 @@
-import {Spinner} from './spinner'
+import Spinner from "./spinner";
 
 export interface IOverlay {
     show(): void;
@@ -16,25 +16,25 @@ class OverlayDiv {
     }
 
     constructor(root: HTMLElement) {
-        this.el = document.createElement('div');
-        this.el.style.width = '100%';
-        this.el.style.height = '100%';
-        this.el.style.position = 'absolute';
-        this.el.style.left = '0';
-        this.el.style.top = '0';
-        this.el.style.display = 'flex';
-        this.el.style.flexDirection = 'column';
-        this.el.style.justifyContent = 'center';
-        this.el.style.alignItems = 'center';
+        this.el = document.createElement("div");
+        this.el.style.width = "100%";
+        this.el.style.height = "100%";
+        this.el.style.position = "absolute";
+        this.el.style.left = "0";
+        this.el.style.top = "0";
+        this.el.style.display = "flex";
+        this.el.style.flexDirection = "column";
+        this.el.style.justifyContent = "center";
+        this.el.style.alignItems = "center";
         root.appendChild(this.el);
     }
 
     show() {
-        this.el.style.display = 'flex';
+        this.el.style.display = "flex";
     }
 
     hide() {
-        this.el.style.display = 'none';
+        this.el.style.display = "none";
     }
 
     remove() {
@@ -49,9 +49,9 @@ class PlayOverlayDiv implements IOverlay {
 
     constructor(root: HTMLElement) {
         this._overlay = new OverlayDiv(root);
-        this._input = document.createElement('input');
-        this._input.type = 'button';
-        this._input.value = 'Play';
+        this._input = document.createElement("input");
+        this._input.type = "button";
+        this._input.value = "Play";
         this._input.onclick = () => {
             if (this.onPlay) {
                 this.onPlay();
@@ -69,14 +69,11 @@ class PlayOverlayDiv implements IOverlay {
         this._overlay.hide();
     }
 
-    mouseEnter() {
-    }
+    mouseEnter() {}
 
-    mouseMove() {
-    }
+    mouseMove() {}
 
-    mouseLeave() {
-    }
+    mouseLeave() {}
 
     remove() {
         this._overlay.remove();
@@ -88,7 +85,7 @@ class LoadingOverlayDiv implements IOverlay {
 
     constructor(root: HTMLElement) {
         this._overlay = new OverlayDiv(root);
-        this._overlay.style.backgroundColor = 'black';
+        this._overlay.style.backgroundColor = "black";
         new Spinner(this._overlay.el);
         root.appendChild(this._overlay.el);
     }
@@ -101,14 +98,11 @@ class LoadingOverlayDiv implements IOverlay {
         this._overlay.hide();
     }
 
-    mouseEnter() {
-    }
+    mouseEnter() {}
 
-    mouseMove() {
-    }
+    mouseMove() {}
 
-    mouseLeave() {
-    }
+    mouseLeave() {}
 
     remove() {
         this._overlay.remove();
@@ -124,25 +118,25 @@ class SettingsOverlayDiv implements IOverlay {
 
     constructor(root: HTMLElement) {
         this._overlay = new OverlayDiv(root);
-        this._speed1 = document.createElement('input');
-        this._speed1.type = 'button';
-        this._speed1.value = 'x1';
+        this._speed1 = document.createElement("input");
+        this._speed1.type = "button";
+        this._speed1.value = "x1";
         this._speed1.onclick = () => {
             if (this.onSpeed) {
                 this.onSpeed(1);
             }
         };
-        this._speed2 = document.createElement('input');
-        this._speed2.type = 'button';
-        this._speed2.value = 'x2';
+        this._speed2 = document.createElement("input");
+        this._speed2.type = "button";
+        this._speed2.value = "x2";
         this._speed2.onclick = () => {
             if (this.onSpeed) {
                 this.onSpeed(2);
             }
         };
-        this._speed4 = document.createElement('input');
-        this._speed4.type = 'button';
-        this._speed4.value = 'x4';
+        this._speed4 = document.createElement("input");
+        this._speed4.type = "button";
+        this._speed4.value = "x4";
         this._speed4.onclick = () => {
             if (this.onSpeed) {
                 this.onSpeed(4);
@@ -155,13 +149,9 @@ class SettingsOverlayDiv implements IOverlay {
         root.appendChild(this._overlay.el);
     }
 
-    playing(): void {
+    playing(): void {}
 
-    }
-
-    paused(): void {
-        
-    }
+    paused(): void {}
 
     show() {
         this._overlay.show();
@@ -175,8 +165,7 @@ class SettingsOverlayDiv implements IOverlay {
         this.show();
     }
 
-    mouseMove() {
-    }
+    mouseMove() {}
 
     mouseLeave() {
         this.hide();
@@ -249,11 +238,9 @@ export class Overlay implements IOverlay {
         this._settingsOverlay.paused();
     }
 
-    show(): void {
-    }
+    show(): void {}
 
-    hide(): void {
-    }
+    hide(): void {}
 
     mouseEnter() {
         this._selectedOverlay.mouseEnter();
@@ -273,3 +260,5 @@ export class Overlay implements IOverlay {
         this._settingsOverlay.remove();
     }
 }
+
+export default Overlay;

@@ -1,11 +1,12 @@
 import type { BootLike, GameHeader } from "moroboxai-game-sdk";
-import type { IController } from "@/controller";
 import type {
     IPlayer,
     IMetaPlayer,
     PlayerSaveState,
-    StretchMode
+    StretchMode,
+    AgentLike
 } from "./types";
+import type { IController } from "@controller/types";
 
 export class MetaPlayer implements IMetaPlayer {
     private _players: Array<IPlayer> = [];
@@ -236,5 +237,13 @@ export class MetaPlayer implements IMetaPlayer {
 
     getController(controllerId: number): IController | undefined {
         return this.masterPlayer!.getController(controllerId);
+    }
+
+    loadAgent(controllerId: number, options: AgentLike): Promise<void> {
+        return this.masterPlayer!.loadAgent(controllerId, options);
+    }
+
+    unloadAgent(controllerId: number): void {
+        this.masterPlayer!.unloadAgent(controllerId);
     }
 }

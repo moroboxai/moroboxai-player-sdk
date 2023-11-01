@@ -1,13 +1,10 @@
 import type { IFileServer } from "moroboxai-game-sdk";
-export type {
-    LoadAgentOptions,
-    IInputController,
-    IController
-} from "@/controller";
+export * from "@agent/types";
+export * from "@controller/types";
+export * from "@/plugin";
 import { Player } from "@/player";
 import type { SDKConfig, IPlayer, PlayerOptions } from "@/player";
 export type * from "@/player/types";
-export * from "@/plugin";
 
 /**
  * Version of the game SDK.

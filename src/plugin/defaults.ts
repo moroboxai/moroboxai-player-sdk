@@ -1,10 +1,13 @@
 import {
     Plugin,
     PluginContext,
-    LoadHeaderOptions,
-    LoadBootOptions
+    LoadHeaderPluginOptions,
+    LoadBootPluginOptions,
+    LoadAgentPluginOptions
 } from "./hooks";
 import type { GameHeader, BootFunction } from "moroboxai-game-sdk";
+import * as Agent from "@/agent";
+import type { IAgent } from "@agent/types";
 import YAML from "yaml";
 
 /**
@@ -61,7 +64,7 @@ function getBootFunction(script: string): GetBootFunctionResult {
 
 function loadHeader(
     this: PluginContext,
-    options: LoadHeaderOptions
+    options: LoadHeaderPluginOptions
 ): Promise<GameHeader> {
     return new Promise<GameHeader>(async (resolve, reject) => {
         // The header is provided by user
@@ -88,7 +91,7 @@ function loadHeader(
 
 function loadBoot(
     this: PluginContext,
-    options: LoadBootOptions
+    options: LoadBootPluginOptions
 ): Promise<BootFunction> {
     return new Promise<BootFunction>(async (resolve) => {
         if (options.boot === undefined) {
@@ -148,12 +151,65 @@ function loadBoot(
     });
 }
 
+function loadAgent(
+    this: PluginContext,
+    options: LoadAgentPluginOptions
+): Promise<IAgent | undefined> {
+    return new Promise<IAgent | undefined>(async (resolve) => {
+        // Already have the agent
+        if (options.agent !== undefined) {
+            return resolve(options.agent);
+        }
+
+        console.log(options);
+        let language = options.language;
+
+        // Load the script
+        let script = options.script;
+        if (script === undefined) {
+            if (options.fileServer === undefined) {
+                throw "can't load agent without a file server";
+            }
+
+            // Filename can be an archive or script
+            let main = options.fileServer.filename;
+            if (main === undefined || main.endsWith(".zip")) {
+                // Fallback to the default language and filename
+                language = "javascript";
+                main = Agent.main(language);
+            } else if (language === undefined) {
+                // Try deduce the language from filename
+                language = Agent.language(main);
+            }
+
+            if (language === undefined) {
+                throw `unknown agent language for ${main}`;
+            }
+
+            script = await options.fileServer.get(main);
+        } else {
+            // For direct scripts use javascript
+            language = "javascript";
+        }
+
+        const agent = Agent.init({
+            baseUrl: options.fileServer?.baseUrl ?? "",
+            language: language,
+            script,
+            api: options.api
+        });
+
+        return resolve(agent);
+    });
+}
+
 export namespace plugins {
     export const defaultPlugin: PluginImpl<object> = (options?: object) => {
         return {
             name: "default",
             loadHeader,
-            loadBoot
+            loadBoot,
+            loadAgent
         };
     };
 
@@ -169,7 +225,7 @@ export namespace plugins {
              */
             loadHeader(
                 this: PluginContext,
-                options: LoadHeaderOptions
+                options: LoadHeaderPluginOptions
             ): Promise<GameHeader> {
                 return new Promise<GameHeader>((resolve, reject) => {
                     options.header = {

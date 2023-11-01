@@ -2,9 +2,11 @@ import type {
     IGameServer,
     GameHeader,
     BootLike,
-    IVM
+    IVM,
+    IFileServer
 } from "moroboxai-game-sdk";
-import type { IPlayer } from "@/player";
+import type { IPlayer } from "@/player/types";
+import type { AgentLanguage, IAPI, IAgent } from "@/agent/types";
 
 export interface PluginContext {
     player: IPlayer;
@@ -12,7 +14,7 @@ export interface PluginContext {
 }
 
 // Define hooks
-export interface LoadHeaderOptions {
+export interface LoadHeaderPluginOptions {
     // URL of the header
     url: string;
     // Game server
@@ -21,7 +23,7 @@ export interface LoadHeaderOptions {
     header?: GameHeader;
 }
 
-export interface LoadBootOptions {
+export interface LoadBootPluginOptions {
     // Game server
     gameServer: IGameServer;
     // Context loaded by the previous plugin
@@ -30,9 +32,29 @@ export interface LoadBootOptions {
     boot?: BootLike;
 }
 
+export interface LoadAgentPluginOptions {
+    // File server
+    fileServer?: IFileServer;
+    // Language of the script
+    language?: AgentLanguage;
+    // Script of the agent
+    script?: string;
+    // Agent loaded by the previous plugin
+    agent?: IAgent;
+    // API for the agent
+    api: IAPI;
+}
+
 export interface FunctionPluginHooks {
-    loadHeader: (this: PluginContext, options: LoadHeaderOptions) => GameHeader;
-    loadBoot: (this: PluginContext, options: LoadBootOptions) => BootLike;
+    loadHeader: (
+        this: PluginContext,
+        options: LoadHeaderPluginOptions
+    ) => GameHeader;
+    loadBoot: (this: PluginContext, options: LoadBootPluginOptions) => BootLike;
+    loadAgent: (
+        this: PluginContext,
+        options: LoadAgentPluginOptions
+    ) => IAgent | undefined;
 }
 
 export type SyncPluginHooks = "test";

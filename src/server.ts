@@ -19,17 +19,53 @@ export function getUrl(url: string): Promise<string> {
         });
 }
 
-// Serve files from remote URL
+/**
+ * Serve files from URL with fetch.
+ */
 export class FetchFileServer implements MoroboxAIGameSDK.IFileServer {
-    // Base URL of the files
-    baseUrl: string;
+    // Complete URL
+    private _url: string;
+    // Base URL
+    private _baseUrl: string;
+    // Filename
+    private _filename?: string;
 
-    constructor(baseUrl: string) {
-        this.baseUrl = baseUrl;
+    constructor(url: string) {
+        this._url = url;
+
+        // Remove the filename
+        const pos = url.lastIndexOf("/");
+        if (url.lastIndexOf(".", pos) !== -1) {
+            if (pos === -1) {
+                this._baseUrl = "";
+            } else {
+                this._baseUrl = url.substring(0, pos);
+            }
+            this._filename = url.substring(pos + 1);
+        } else {
+            this._baseUrl = url;
+        }
+
+        // Ensure the trailing /
+        if (!this._baseUrl.endsWith("/")) {
+            this._baseUrl = this._baseUrl + "/";
+        }
+    }
+
+    get url(): string {
+        return this._url;
+    }
+
+    get baseUrl(): string {
+        return this._baseUrl;
+    }
+
+    get filename(): string | undefined {
+        return this._filename;
     }
 
     href(path: string): string {
-        return `${this.baseUrl}/${path}`;
+        return `${this.baseUrl}${path}`;
     }
 
     get(path: string): Promise<string> {
@@ -37,12 +73,14 @@ export class FetchFileServer implements MoroboxAIGameSDK.IFileServer {
     }
 
     ready(callback: () => void): void {
+        // No setup required, so call the callback right now
         if (callback) {
             callback();
         }
     }
 
     close(callback?: (err: any) => void): void {
+        // No cleanup required, so call the callback right now
         if (callback) {
             callback(null);
         }
@@ -54,6 +92,18 @@ export class GameServer implements MoroboxAIGameSDK.IGameServer {
 
     constructor(server: MoroboxAIGameSDK.IFileServer) {
         this._server = server;
+    }
+
+    get url(): string {
+        return this._server.url;
+    }
+
+    get baseUrl(): string {
+        return this._server.baseUrl;
+    }
+
+    get filename(): string | undefined {
+        return this._server.filename;
     }
 
     href(path: string): string {

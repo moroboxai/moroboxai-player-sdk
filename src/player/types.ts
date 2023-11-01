@@ -5,12 +5,12 @@ import type {
     GameSaveState
 } from "moroboxai-game-sdk";
 import type {
-    AgentLike,
     IController,
-    IInputController,
+    IInputDevice,
     ControllerSaveState
-} from "@/controller";
+} from "@controller/types";
 import type { Plugin } from "@/plugin";
+import type { AgentLanguage, IAgent } from "@/agent/types";
 
 /**
  * Possible stretch modes for the player.
@@ -20,14 +20,43 @@ import type { Plugin } from "@/plugin";
  */
 export type StretchMode = "fill" | "fixed";
 
-export interface SDKConfig {
-    // Create a controller listening for player inputs
-    inputController: () => IInputController;
-    // Create a file server for a given URL
-    fileServer: (baseUrl: string) => IFileServer;
-    // Create a zip server for a given URL
-    zipServer: (zipUrl: string) => IFileServer;
+// Return a new IInputDevice
+export interface InputDeviceFactory {
+    (): IInputDevice;
 }
+
+// Return a new IFileServer for an URL
+export interface FileServerFactory {
+    (baseUrl: string): IFileServer;
+}
+
+export interface SDKConfig {
+    // Create a device listening for player inputs
+    inputDeviceFactory: InputDeviceFactory;
+    // Create a file server for a given URL
+    fileServerFactory: FileServerFactory;
+}
+
+/**
+ * Options for loading an agent.
+ */
+export type LoadAgentOptions = {
+    // Language of the script
+    language?: AgentLanguage;
+} & (
+    | {
+          // URL where to find the script
+          url: string;
+          script?: never;
+      }
+    | {
+          url?: never;
+          // Direct script of the agent
+          script: string;
+      }
+);
+
+export type AgentLike = LoadAgentOptions | IAgent;
 
 // Possible options for initializing the player
 export interface PlayerOptions {
@@ -154,10 +183,23 @@ export interface IPlayer {
 
     /**
      * Get a controller by id.
-     * @param {number} controllerId - Controller id
+     * @param {number} controllerId - controller id
      * @returns {IController} Controller
      */
     getController(controllerId: number): IController | undefined;
+
+    /**
+     * Load an agent to a controller.
+     * @param {number} controllerId - controller id
+     * @param {AgentLike} options - options
+     */
+    loadAgent(controllerId: number, options: AgentLike): Promise<void>;
+
+    /**
+     * Unload an agent from a controller.
+     * @param {number} controllerId - controller id
+     */
+    unloadAgent(controllerId: number): void;
 
     // Remove the player from document
     remove(): void;

@@ -1,8 +1,8 @@
 import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
 import type { BootLike } from "moroboxai-game-sdk";
-import { ControllerBus } from "@/controller";
-import type { IController, ControllerSaveState } from "@/controller";
-import { Overlay } from "@/overlay";
+import { Controller, ControllerBus } from "@/controller";
+import type { IController } from "@/controller/types";
+import UI from "@/ui";
 import {
     DEFAULT_GAME_HEIGHT,
     DEFAULT_GAME_WIDTH,
@@ -14,10 +14,13 @@ import type {
     SDKConfig,
     IPlayer,
     PlayerOptions,
-    PlayerSaveState
-} from "@/player";
+    PlayerSaveState,
+    AgentLike
+} from "@/player/types";
 import { PluginContext, PluginDriver, plugins } from "@/plugin";
-import { LoadGameTask } from "@/utils/loadGame";
+import LoadGameTask from "@utils/loadGame";
+import LoadAgentTask from "@utils/loadAgent";
+import type { IAPI as IAgentAPI } from "@agent/types";
 
 // Force displaying the loading screen for x seconds
 const FORCE_LOADING_TIME = 1000;
@@ -41,21 +44,28 @@ interface Dimension {
     height: number;
 }
 
+class AgentAPI implements IAgentAPI {
+    require(value: string) {
+        throw new Error("Method not implemented.");
+    }
+}
+
 // Player instance for controlling the game
 export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
     private _sdkConfig: SDKConfig;
     private _state: EPlayerState = EPlayerState.Idle;
-    private _ui: {
-        element?: HTMLElement;
-        wrapper?: HTMLElement;
-        base?: HTMLElement;
-        overlay?: Overlay;
-    } = {};
+    private _ui?: UI;
     private _options: PlayerOptions;
     private _pluginDriver: PluginDriver;
+    private _agentApi: IAgentAPI;
     // Token passed to promises and used for cancel
     private _readyCallback?: () => void;
     private _loadGameTask?: LoadGameTask;
+    // Tasks of loading agents for each controller
+    private _loadAgentTask: Map<number, LoadAgentTask> = new Map<
+        number,
+        LoadAgentTask
+    >();
     private _startLoadingDate?: Date;
     // Game server
     private _gameServer?: MoroboxAIGameSDK.IGameServer;
@@ -86,20 +96,31 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
                     : [])
             ]
         );
+        this._agentApi = new AgentAPI();
         this._controllerBus = new ControllerBus({
-            inputController: config.inputController
+            controllers: [
+                new Controller({
+                    id: 0,
+                    inputDevice: config.inputDeviceFactory()
+                }),
+                new Controller({
+                    id: 1
+                })
+            ]
         });
         if (options.agents !== undefined) {
             if (!Array.isArray(options.agents)) {
                 options.agents = [options.agents];
             }
 
-            options.agents.map((agent, index) => {
-                const controller = this._controllerBus.get(index);
-                if (controller !== undefined) {
-                    controller.loadAgent(agent);
-                }
-            });
+            const controllers: IController[] = Array.from(
+                this._controllerBus.controllers.values()
+            );
+            let index = 0;
+            for (let i = 0; i < controllers.length; ++i) {
+                this.loadAgent(controllers[i].id, options.agents[index]);
+                index = Math.min(index + 1, options.agents.length - 1);
+            }
         }
         this._tickFromGame = this._tickFromGame.bind(this);
 
@@ -108,7 +129,6 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         }
 
         if (isHTMLElement(element)) {
-            this._ui.element = element as HTMLElement;
             this._options = { ...options };
 
             if (
@@ -118,7 +138,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
                 this._options.url = element.dataset.url;
             }
 
-            this._attach();
+            this._attachUi(element);
             this.play({ url: this._options.url });
         }
     }
@@ -135,46 +155,16 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         return this._state == EPlayerState.Pause;
     }
 
-    private _attach() {
-        if (this._ui.element === undefined) {
-            return;
-        }
-
-        {
-            let div = document.createElement("div");
-            this._ui.wrapper = div;
-            div.addEventListener("mouseenter", () => this._onMouseEnter());
-            div.addEventListener("mousemove", () => this._onMouseMove());
-            div.addEventListener("mouseleave", () => this._onMouseLeave());
-            if (this._options.stretchMode) div.style.width = "100%";
-            div.style.height = "100%";
-            div.style.position = "relative";
-            div.style.backgroundPosition = "center";
-            div.style.backgroundSize = "cover";
-            div.style.backgroundColor = "black";
-
-            this._ui.element.appendChild(div);
-        }
-
-        {
-            let div = document.createElement("div");
-            this._ui.base = div;
-            div.style.width = "100%";
-            div.style.height = "100%";
-            div.style.position = "absolute";
-            div.style.left = "0";
-            div.style.top = "0";
-            div.style.display = "flex";
-            div.style.flexDirection = "row";
-            div.style.justifyContent = "center";
-            this._ui.wrapper.appendChild(div);
-        }
-
+    private _attachUi(element: HTMLElement) {
+        this._ui = new UI({
+            element,
+            stretchMode: this._options.stretchMode,
+            onPlay: () => this.play(),
+            onSpeedSelected: (value: number) => {
+                this.speed = value;
+            }
+        });
         this.resize();
-
-        this._ui.overlay = new Overlay(this._ui.wrapper);
-        this._ui.overlay.onPlay = () => this.play();
-        this._ui.overlay.onSpeed = (value: number) => (this.speed = value);
 
         this._resizeListener = () => this._onResize();
         window.addEventListener("resize", this._resizeListener);
@@ -198,7 +188,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
 
         // Show loading
         this._state = EPlayerState.Loading;
-        this._ui.overlay?.loading();
+        this._ui?.loading();
 
         // Create a new task for loading the header
         this._loadGameTask = new LoadGameTask({
@@ -213,8 +203,8 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
                 this.resize();
 
                 // Change the preview image
-                if (this._ui.wrapper !== undefined) {
-                    this._ui.wrapper.style.backgroundImage =
+                if (this._ui !== undefined) {
+                    this._ui.backgroundImage =
                         this._header.previewUrl !== undefined
                             ? `url('${this._gameServer.href(
                                   this._header.previewUrl
@@ -227,7 +217,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
                     this._play();
                 } else {
                     this._state = EPlayerState.Idle;
-                    this._ui.overlay?.stopped();
+                    this._ui?.stopped();
                 }
             },
             onHeaderError: (task) => {
@@ -239,7 +229,16 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             onGameLoaded: (task) => {
                 this._game = task.game!;
                 this._game.ticker = this._tickFromGame;
+
+                // Create the controllers required by the game
+                /*this._controllerBus = new ControllerBus({
+                    controllers: []
+                });*/
+
+                // Resize the player and game
                 this.resize();
+
+                // Set the player as ready
                 this._ready();
             },
             onGameError: (task) => {
@@ -257,9 +256,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         if (this._state === EPlayerState.Pause) {
             this._state = EPlayerState.Playing;
 
-            if (this._ui.overlay) {
-                this._ui.overlay.playing();
-            }
+            this._ui?.playing();
 
             if (this._game !== undefined) {
                 this._game.play();
@@ -276,39 +273,18 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         this._state = EPlayerState.Loading;
         this._startLoadingDate = new Date();
 
-        if (this._ui.overlay) {
-            this._ui.overlay.loading();
+        // Should never happen
+        if (this._ui === undefined) {
+            throw "no player UI";
         }
+
+        // Show the loading state
+        this._ui.loading();
 
         // Remove the preview image
-        if (this._ui.wrapper !== undefined) {
-            this._ui.wrapper.style.backgroundImage = "";
-        }
-
-        // Should never happen
-        if (this._ui.element === undefined) {
-            throw "no root HTML element";
-        }
+        this._ui.backgroundImage = undefined;
 
         this._loadGameTask.loadGame();
-    }
-
-    _onMouseEnter() {
-        if (this._ui.overlay) {
-            this._ui.overlay.mouseEnter();
-        }
-    }
-
-    _onMouseMove() {
-        if (this._ui.overlay) {
-            this._ui.overlay.mouseMove();
-        }
-    }
-
-    _onMouseLeave() {
-        if (this._ui.overlay) {
-            this._ui.overlay.mouseLeave();
-        }
     }
 
     // PluginContext interface
@@ -322,7 +298,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
 
     // IVM interface
     get root(): HTMLElement {
-        return this._ui.base as HTMLElement;
+        return this._ui!.gameRoot;
     }
 
     get gameServer(): MoroboxAIGameSDK.IGameServer {
@@ -403,14 +379,12 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             return;
         }
 
-        if (this._ui.wrapper === undefined) return;
-
+        // Optimal player size of the game
         const playerSize = this._optimalPlayerSize();
-        this._ui.wrapper.style.aspectRatio = `${playerSize.width}/${playerSize.height}`;
 
         // Set the player size defined in options
-        const rootElement = this._ui.element!;
         const fixedMode = this.stretchMode === "fixed";
+
         // In fixed mode, we take the size from options in priority, then the
         // optimal size of the player.
         // In fill mode, we take the size from options if defined, else we
@@ -419,17 +393,13 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             this._options.width ?? (fixedMode ? playerSize.width : undefined);
         let playerHeight =
             this._options.height ?? (fixedMode ? playerSize.height : undefined);
-        if (typeof playerWidth === "number") {
-            rootElement.style.width = `${Math.round(playerWidth)}px`;
-        } else if (typeof playerWidth === "string") {
-            rootElement.style.width = playerWidth;
-        }
 
-        if (typeof playerHeight === "number") {
-            rootElement.style.height = `${Math.round(playerHeight)}px`;
-        } else if (typeof playerHeight === "string") {
-            rootElement.style.height = playerHeight;
-        }
+        // Resize the UI
+        this._ui?.resize({
+            width: playerWidth,
+            height: playerHeight,
+            aspectRatio: `${playerSize.width}/${playerSize.height}`
+        });
 
         this._onResize();
     }
@@ -482,9 +452,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             this.scale = this._options.scale ?? 1;
         }
 
-        if (this._ui.overlay) {
-            this._ui.overlay.playing();
-        }
+        this._ui?.playing();
 
         if (this._game) {
             this._game.play();
@@ -497,9 +465,45 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
         return this._controllerBus.get(id);
     }
 
+    loadAgent(controllerId: number, options: AgentLike): Promise<void> {
+        // Cancel previous task if any
+        this._loadAgentTask.get(controllerId)?.cancel();
+
+        // Create a new task for loading the agent
+        const task = new LoadAgentTask({
+            options: options,
+            sdkConfig: this._sdkConfig,
+            pluginDriver: this._pluginDriver,
+            api: this._agentApi,
+            onAgentLoaded: (task) => {
+                const controller = this.getController(controllerId);
+                if (controller !== undefined) {
+                    controller.agent = task.agent!;
+                }
+            },
+            onAgentError: (task) => {
+                // Check if an error occurred
+                if (task.error !== undefined) {
+                    console.error(task.error);
+                }
+            }
+        });
+
+        this._loadAgentTask.set(controllerId, task);
+
+        return task.loadAgent();
+    }
+
+    unloadAgent(controllerId: number): void {
+        const controller = this.getController(controllerId);
+        if (controller !== undefined) {
+            controller.agent = undefined;
+        }
+    }
+
     // IPlayer interface
     get width(): number {
-        return this._ui.wrapper ? this._ui.wrapper.clientWidth : 0;
+        return this._ui?.width ?? 0;
     }
 
     set width(value: number) {
@@ -507,7 +511,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
     }
 
     get height(): number {
-        return this._ui.wrapper ? this._ui.wrapper.clientHeight : 0;
+        return this._ui?.height ?? 0;
     }
 
     set height(value: number) {
@@ -644,9 +648,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             this._game.pause();
         }
 
-        if (this._ui.overlay) {
-            this._ui.overlay.paused();
-        }
+        this._ui?.paused();
 
         this._state = EPlayerState.Pause;
     }
@@ -657,9 +659,7 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             this._game = undefined;
         }
 
-        if (this._ui.overlay) {
-            this._ui.overlay.stopped();
-        }
+        this._ui?.stopped();
 
         if (this._gameServer !== undefined) {
             this._gameServer.close();
@@ -684,14 +684,9 @@ export class Player implements IPlayer, MoroboxAIGameSDK.IVM, PluginContext {
             window.removeEventListener("resize", this._resizeListener);
         }
 
-        if (this._ui.overlay) {
-            this._ui.overlay.remove();
-            this._ui.overlay = undefined;
-        }
-
-        if (this._ui.wrapper) {
-            this._ui.wrapper.remove();
-            this._ui.wrapper = undefined;
+        if (this._ui !== undefined) {
+            this._ui.remove();
+            this._ui = undefined;
         }
     }
 
