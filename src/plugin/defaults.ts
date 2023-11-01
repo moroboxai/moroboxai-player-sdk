@@ -161,7 +161,6 @@ function loadAgent(
             return resolve(options.agent);
         }
 
-        console.log(options);
         let language = options.language;
 
         // Load the script
@@ -187,7 +186,7 @@ function loadAgent(
             }
 
             script = await options.fileServer.get(main);
-        } else {
+        } else if (language === undefined) {
             // For direct scripts use javascript
             language = "javascript";
         }
