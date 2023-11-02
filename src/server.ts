@@ -35,7 +35,7 @@ export class FetchFileServer implements MoroboxAIGameSDK.IFileServer {
 
         // Remove the filename
         const pos = url.lastIndexOf("/");
-        if (url.lastIndexOf(".", pos) !== -1) {
+        if (url.indexOf(".", pos) !== -1) {
             if (pos === -1) {
                 this._baseUrl = "";
             } else {
